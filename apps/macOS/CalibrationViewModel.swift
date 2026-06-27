@@ -35,6 +35,12 @@ final class CalibrationViewModel: ObservableObject {
     // MARK: Run output — smoothed, normalized [0, 1], origin top-left.
     @Published var cursor: ScreenPoint?
 
+    // MARK: Event stream (Phase 3) — fixations detected from the live calibrated gaze.
+    @Published var sessionStart: SessionStart?
+    @Published private(set) var fixationEvents: [FixationEvent] = []
+    private let fixationDetector = FixationDetector()
+    private let maxLoggedFixations = 60
+
     /// Pixel size of the calibration view, reported by `CalibrationView`. Used as the
     /// screenWidth/Height for `fit()` (only scales the reported RMS error in pixels).
     var calibrationPixelSize = CGSize(width: 800, height: 600)
@@ -92,13 +98,22 @@ final class CalibrationViewModel: ObservableObject {
         await startCamera()
         guard isRunning else { return }   // camera denied/failed — don't enter Run with no sensor
         filter.reset()
+        fixationDetector.reset()
+        fixationEvents = []
         cursor = nil
+        sessionStart = SessionStart(
+            screenW: Int(calibrationPixelSize.width),
+            screenH: Int(calibrationPixelSize.height),
+            calibrationPoints: targets.count,
+            rmsErrorPx: rmsErrorPx ?? 0
+        )
         activity = .running
     }
 
     /// Full stop when leaving Phase 2 (e.g. back to Probe). Keeps the learned model.
     func stop() async {
         cancelCalibration()
+        if let fixation = fixationDetector.flush() { record(fixation) }
         activity = .idle
         cursor = nil
         await stopCamera()
@@ -176,9 +191,21 @@ final class CalibrationViewModel: ObservableObject {
             if isCapturing { session.add(targetIndex: currentDotIndex, gx: gx, gy: gy) }
         case .running:
             guard let model = calibrationModel else { return }
-            cursor = filter.filter(model.map(gx, gy), at: sample.t)
+            let mapped = filter.filter(model.map(gx, gy), at: sample.t)
+            cursor = mapped
+            if let fixation = fixationDetector.add(mapped, at: sample.t) {
+                record(fixation)
+            }
         case .idle:
             break
+        }
+    }
+
+    /// Append a completed fixation as a Claude-facing event, capping the in-memory log.
+    private func record(_ fixation: Fixation) {
+        fixationEvents.append(FixationEvent(fixation))
+        if fixationEvents.count > maxLoggedFixations {
+            fixationEvents.removeFirst(fixationEvents.count - maxLoggedFixations)
         }
     }
 

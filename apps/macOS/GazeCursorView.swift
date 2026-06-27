@@ -17,6 +17,13 @@ struct GazeCursorView: View {
                     CameraIssueView(authorization: calibration.authorization,
                                     errorMessage: calibration.errorMessage)
                 } else {
+                    // Recent fixations — translucent discs sized by dwell time.
+                    ForEach(calibration.fixationEvents.suffix(15), id: \.tStart) { event in
+                        FixationMarker(dwell: event.tEnd - event.tStart)
+                            .position(x: clamp(event.point.x) * geo.size.width,
+                                      y: clamp(event.point.y) * geo.size.height)
+                    }
+
                     if let point = calibration.cursor {
                         GazeRing()
                             .position(x: clamp(point.x) * geo.size.width,
@@ -51,6 +58,14 @@ struct GazeCursorView: View {
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.7))
             }
+            Text("Fixations: \(calibration.fixationEvents.count)")
+                .font(.system(.callout, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.7))
+            if let last = calibration.fixationEvents.last {
+                Text(String(format: "last dwell: %.0f ms", (last.tEnd - last.tStart) * 1000))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
         }
     }
 
@@ -69,5 +84,19 @@ private struct GazeRing: View {
         .frame(width: 44, height: 44)
         .shadow(color: .accentColor.opacity(0.5), radius: 8)
         .allowsHitTesting(false)
+    }
+}
+
+/// A past fixation: a translucent orange disc whose size grows with dwell time.
+private struct FixationMarker: View {
+    let dwell: TimeInterval   // seconds
+
+    var body: some View {
+        let size = min(56, 18 + CGFloat(dwell) * 36)
+        Circle()
+            .fill(Color.orange.opacity(0.12))
+            .overlay(Circle().stroke(Color.orange.opacity(0.6), lineWidth: 1.5))
+            .frame(width: size, height: size)
+            .allowsHitTesting(false)
     }
 }
