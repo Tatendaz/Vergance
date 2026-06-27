@@ -27,6 +27,10 @@ public struct GazeSample: Sendable, Equatable {
     public var t: TimeInterval
     public var gazeFeatures: [Double]
     public var headPose: HeadPose
+    /// Gaze-independent inter-eye distance (normalized) — a proxy for head distance to the
+    /// camera. Shrinks as you lean back, grows as you lean in; used to detect distance
+    /// drift from the calibration pose (which head rotation alone doesn't capture).
+    public var headSpan: Double
     public var mouth: MouthSignal
     public var confidence: Double
 
@@ -34,12 +38,14 @@ public struct GazeSample: Sendable, Equatable {
         t: TimeInterval,
         gazeFeatures: [Double],
         headPose: HeadPose = .init(),
+        headSpan: Double = 0,
         mouth: MouthSignal = .init(),
         confidence: Double = 1
     ) {
         self.t = t
         self.gazeFeatures = gazeFeatures
         self.headPose = headPose
+        self.headSpan = headSpan
         self.mouth = mouth
         self.confidence = confidence
     }

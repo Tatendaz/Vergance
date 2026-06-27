@@ -57,4 +57,12 @@ final class FaceLandmarksTests: XCTestCase {
         XCTAssertEqual(s.mouth.openness, 0.2, accuracy: 1e-9)
         XCTAssertEqual(s.headPose.yaw, 0.1, accuracy: 1e-9)
     }
+
+    func testInterEyeSpanCarriedInSample() {
+        let left = eye(inner: (0.3, 0.5), outer: (0.4, 0.5), pupil: (0.35, 0.5))
+        let right = eye(inner: (0.6, 0.5), outer: (0.7, 0.5), pupil: (0.65, 0.5))
+        let f = FaceLandmarks(leftEye: left, rightEye: right, outerLips: [], headPose: .init())
+        XCTAssertEqual(GazeFeatures.interEyeSpan(f), 0.3, accuracy: 1e-9)   // eye centers 0.35 & 0.65
+        XCTAssertEqual(GazeFeatures.sample(f, t: 0).headSpan, 0.3, accuracy: 1e-9)
+    }
 }

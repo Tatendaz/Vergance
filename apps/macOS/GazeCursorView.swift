@@ -26,6 +26,7 @@ struct GazeCursorView: View {
 
                     if let point = calibration.cursor {
                         GazeRing()
+                            .opacity(calibration.headDrifted ? 0.35 : 1)
                             .position(x: clamp(point.x) * geo.size.width,
                                       y: clamp(point.y) * geo.size.height)
                     } else {
@@ -41,6 +42,15 @@ struct GazeCursorView: View {
                                 .controlSize(.large)
                         }
                         Spacer()
+                        if calibration.headDrifted {
+                            Label("Head moved — recalibrate for accuracy", systemImage: "exclamationmark.triangle.fill")
+                                .font(.callout.weight(.medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.orange.opacity(0.9), in: Capsule())
+                                .padding(.bottom, 8)
+                        }
                     }
                     .padding(16)
                 }
