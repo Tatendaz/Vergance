@@ -38,6 +38,8 @@ final class CalibrationViewModel: ObservableObject {
     // MARK: Event stream (Phase 3) — fixations detected from the live calibrated gaze.
     @Published var sessionStart: SessionStart?
     @Published private(set) var fixationEvents: [FixationEvent] = []
+    /// Total fixations this Run — never trimmed, unlike the capped `fixationEvents` history.
+    @Published private(set) var fixationCount = 0
     private let fixationDetector = FixationDetector()
     private let maxLoggedFixations = 60
 
@@ -97,15 +99,19 @@ final class CalibrationViewModel: ObservableObject {
     func enterRunMode() async {
         await startCamera()
         guard isRunning else { return }   // camera denied/failed — don't enter Run with no sensor
+        // A completed calibration is required to map gaze; don't publish a session_start
+        // with a fake 0px error when uncalibrated. (The UI also gates Run on this.)
+        guard calibrationModel != nil, let rms = rmsErrorPx else { return }
         filter.reset()
         fixationDetector.reset()
         fixationEvents = []
+        fixationCount = 0
         cursor = nil
         sessionStart = SessionStart(
             screenW: Int(calibrationPixelSize.width),
             screenH: Int(calibrationPixelSize.height),
             calibrationPoints: targets.count,
-            rmsErrorPx: rmsErrorPx ?? 0
+            rmsErrorPx: rms
         )
         activity = .running
     }
@@ -203,6 +209,7 @@ final class CalibrationViewModel: ObservableObject {
 
     /// Append a completed fixation as a Claude-facing event, capping the in-memory log.
     private func record(_ fixation: Fixation) {
+        fixationCount += 1
         fixationEvents.append(FixationEvent(fixation))
         if fixationEvents.count > maxLoggedFixations {
             fixationEvents.removeFirst(fixationEvents.count - maxLoggedFixations)

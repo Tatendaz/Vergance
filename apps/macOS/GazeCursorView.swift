@@ -58,7 +58,7 @@ struct GazeCursorView: View {
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(.white.opacity(0.7))
             }
-            Text("Fixations: \(calibration.fixationEvents.count)")
+            Text("Fixations: \(calibration.fixationCount)")
                 .font(.system(.callout, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.7))
             if let last = calibration.fixationEvents.last {

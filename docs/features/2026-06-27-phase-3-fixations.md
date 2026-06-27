@@ -21,6 +21,7 @@ visualized on the Run screen.
 ## Notes
 Fixations are geometric (centroid + dwell); resolving them to named UI elements is a later
 phase. Detector thresholds (>150 ms within a small radius) live in GazeKit. Manually
-validated: dwelling produces markers and the count climbs on fixation while staying quiet
-on saccades ("very good tracking"). Known follow-up: webcam calibration is head-pose
+validated: settling on a spot then moving off records a fixation — the marker and count
+appear when the dwell cluster ends (per `FixationDetector`), while saccades produce none
+("very good tracking"). Known follow-up: webcam calibration is head-pose
 sensitive — recalibrate-on-drift + head-pose-aware calibration are the next changes.
