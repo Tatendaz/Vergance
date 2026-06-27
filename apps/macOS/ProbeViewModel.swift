@@ -32,6 +32,7 @@ final class ProbeViewModel: ObservableObject {
     private var samplesTask: Task<Void, Never>?
     private var lastFrameTime: CFTimeInterval?
     private var isStarting = false
+    private var stopRequested = false
 
     // MARK: Control
 
@@ -39,12 +40,14 @@ final class ProbeViewModel: ObservableObject {
         // Re-entry guard: ignore overlapping Start taps while a start is in flight or running.
         guard !isRunning, !isStarting else { return }
         isStarting = true
+        stopRequested = false
         defer { isStarting = false }
         errorMessage = nil
 
         var status = CameraSession.authorizationStatus
         if status == .notDetermined {
             _ = await CameraSession.requestAccess()
+            if stopRequested { return }   // Stop tapped during the permission prompt.
             status = CameraSession.authorizationStatus
         }
         authorization = status
@@ -65,6 +68,12 @@ final class ProbeViewModel: ObservableObject {
 
         do {
             try await sensor.start()
+            // A Stop during the await above tears down and clears self.sensor; honor
+            // that intent instead of flipping a torn-down session back to running.
+            guard !stopRequested, self.sensor === sensor else {
+                sensor.stop()
+                return
+            }
             mirrored = sensor.isMirrored
             isRunning = true
         } catch {
@@ -74,6 +83,7 @@ final class ProbeViewModel: ObservableObject {
     }
 
     func stop() {
+        stopRequested = true
         sensor?.stop()
         teardown()
         latestLandmarks = nil
