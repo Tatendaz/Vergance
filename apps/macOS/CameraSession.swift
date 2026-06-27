@@ -82,6 +82,19 @@ final class CameraSession: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         }
     }
 
+    /// Like ``stop()`` but suspends until the capture session has actually stopped on its
+    /// session queue, so a caller can bring up a new session without racing the device.
+    func stopAndWait() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            sessionQueue.async {
+                if self.session.isRunning {
+                    self.session.stopRunning()
+                }
+                continuation.resume()
+            }
+        }
+    }
+
     // MARK: Configuration
 
     private func configureIfNeeded() throws {

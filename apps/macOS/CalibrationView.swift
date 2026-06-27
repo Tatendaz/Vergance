@@ -14,19 +14,24 @@ struct CalibrationView: View {
             ZStack {
                 Color.black
 
-                if let target = calibration.currentTarget {
-                    TargetDot(capturing: calibration.isCapturing)
-                        .position(x: target.x * geo.size.width,
-                                  y: target.y * geo.size.height)
-                }
+                if calibration.cameraBlocked {
+                    CameraIssueView(authorization: calibration.authorization,
+                                    errorMessage: calibration.errorMessage)
+                } else {
+                    if let target = calibration.currentTarget {
+                        TargetDot(capturing: calibration.isCapturing)
+                            .position(x: target.x * geo.size.width,
+                                      y: target.y * geo.size.height)
+                    }
 
-                VStack {
-                    header
-                    Spacer()
-                    controls
+                    VStack {
+                        header
+                        Spacer()
+                        controls
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .padding(24)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .onAppear { report(geo.size) }
             .onChange(of: geo.size) { _, newSize in report(newSize) }

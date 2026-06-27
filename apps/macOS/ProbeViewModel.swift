@@ -82,9 +82,9 @@ final class ProbeViewModel: ObservableObject {
         }
     }
 
-    func stop() {
+    func stop() async {
         stopRequested = true
-        sensor?.stop()
+        await sensor?.stopAndWait()
         teardown()
         latestLandmarks = nil
         fps = 0

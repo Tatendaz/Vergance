@@ -60,12 +60,12 @@ struct ContentView: View {
     private func switchTo(_ newMode: AppMode) async {
         switch newMode {
         case .probe:
-            calibration.stop()
+            await calibration.stop()
         case .calibrate:
-            model.stop()
+            await model.stop()
             await calibration.enterCalibrateMode()
         case .run:
-            model.stop()
+            await model.stop()
             await calibration.enterRunMode()
         }
     }
@@ -179,7 +179,7 @@ struct ContentView: View {
             Button(model.isRunning ? "Stop" : "Start") {
                 Task {
                     if model.isRunning {
-                        model.stop()
+                        await model.stop()
                     } else {
                         await model.start()
                     }

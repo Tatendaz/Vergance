@@ -13,25 +13,30 @@ struct GazeCursorView: View {
             ZStack {
                 Color(white: 0.12)
 
-                if let point = calibration.cursor {
-                    GazeRing()
-                        .position(x: clamp(point.x) * geo.size.width,
-                                  y: clamp(point.y) * geo.size.height)
+                if calibration.cameraBlocked {
+                    CameraIssueView(authorization: calibration.authorization,
+                                    errorMessage: calibration.errorMessage)
                 } else {
-                    Text("Move your eyes — the cursor follows your gaze.")
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-
-                VStack {
-                    HStack(alignment: .top) {
-                        readout
-                        Spacer()
-                        Button("Recalibrate", action: onRecalibrate)
-                            .controlSize(.large)
+                    if let point = calibration.cursor {
+                        GazeRing()
+                            .position(x: clamp(point.x) * geo.size.width,
+                                      y: clamp(point.y) * geo.size.height)
+                    } else {
+                        Text("Move your eyes — the cursor follows your gaze.")
+                            .foregroundStyle(.white.opacity(0.5))
                     }
-                    Spacer()
+
+                    VStack {
+                        HStack(alignment: .top) {
+                            readout
+                            Spacer()
+                            Button("Recalibrate", action: onRecalibrate)
+                                .controlSize(.large)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
                 }
-                .padding(16)
             }
         }
     }

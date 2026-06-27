@@ -50,6 +50,12 @@ final class CalibrationViewModel: ObservableObject {
     /// Whether a calibration sequence is actively collecting — used to lock the mode picker.
     var isCalibrating: Bool { calibrationState == .running }
 
+    /// The camera can't run (permission denied/restricted, or a start error). The
+    /// Calibrate/Run screens show a message instead of dead-ending.
+    var cameraBlocked: Bool {
+        authorization == .denied || authorization == .restricted || errorMessage != nil
+    }
+
     // Per-dot capture timing.
     private let framesPerDot = 30                 // ~1s at 30fps
     private let settleDuration: Duration = .milliseconds(500)
@@ -84,17 +90,18 @@ final class CalibrationViewModel: ObservableObject {
     /// Enter Run mode: bring the camera up, reset the smoother, and begin cursoring.
     func enterRunMode() async {
         await startCamera()
+        guard isRunning else { return }   // camera denied/failed — don't enter Run with no sensor
         filter.reset()
         cursor = nil
         activity = .running
     }
 
     /// Full stop when leaving Phase 2 (e.g. back to Probe). Keeps the learned model.
-    func stop() {
+    func stop() async {
         cancelCalibration()
         activity = .idle
         cursor = nil
-        stopCamera()
+        await stopCamera()
     }
 
     // MARK: Calibration control
@@ -212,9 +219,9 @@ final class CalibrationViewModel: ObservableObject {
         }
     }
 
-    private func stopCamera() {
+    private func stopCamera() async {
         stopRequested = true
-        sensor?.stop()
+        await sensor?.stopAndWait()
         teardownCamera()
     }
 

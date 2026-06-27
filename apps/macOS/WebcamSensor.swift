@@ -45,6 +45,13 @@ final class WebcamSensor: GazeSensor {
         continuation.finish()
     }
 
+    /// Awaitable stop: suspends until the camera has fully stopped, then ends the stream.
+    /// Used on mode switches so a new sensor doesn't race the device.
+    func stopAndWait() async {
+        await camera.stopAndWait()
+        continuation.finish()
+    }
+
     private func handle(_ pixelBuffer: CVPixelBuffer, time: CMTime) {
         let size = CGSize(width: CVPixelBufferGetWidth(pixelBuffer),
                           height: CVPixelBufferGetHeight(pixelBuffer))
