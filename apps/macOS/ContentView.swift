@@ -2,12 +2,77 @@ import AVFoundation
 import GazeKit
 import SwiftUI
 
-/// Phase 1 webcam probe: live camera preview + landmark overlay on the left, a
-/// numeric readout and Start/Stop control on the right.
+/// Phase 1 probe + Phase 2 calibration/run, switched by a segmented mode picker. The
+/// probe screen below is unchanged from Phase 1; Calibrate and Run are new.
 struct ContentView: View {
     @StateObject private var model = ProbeViewModel()
+    @StateObject private var calibration = CalibrationViewModel()
+    @State private var mode: AppMode = .probe
 
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("Mode", selection: modeBinding) {
+                Text("Probe").tag(AppMode.probe)
+                Text("Calibrate").tag(AppMode.calibrate)
+                Text("Run").tag(AppMode.run)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 360)
+            .padding(8)
+            .disabled(calibration.isCalibrating)
+
+            Divider()
+
+            modeContent
+        }
+        .frame(minWidth: 760, minHeight: 460)
+        .onChange(of: mode) { _, newMode in
+            Task { await switchTo(newMode) }
+        }
+    }
+
+    /// Reject selecting Run until a calibration model exists ("Run disabled until calibrated").
+    private var modeBinding: Binding<AppMode> {
+        Binding(
+            get: { mode },
+            set: { newValue in
+                if newValue == .run, calibration.calibrationModel == nil { return }
+                mode = newValue
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var modeContent: some View {
+        switch mode {
+        case .probe:
+            probeScreen
+        case .calibrate:
+            CalibrationView(calibration: calibration)
+        case .run:
+            GazeCursorView(calibration: calibration) { mode = .calibrate }
+        }
+    }
+
+    /// Stop the activity we're leaving and start the one we're entering. Probe keeps its own
+    /// Start/Stop button, so entering Probe only stops calibration/run.
+    private func switchTo(_ newMode: AppMode) async {
+        switch newMode {
+        case .probe:
+            await calibration.stop()
+        case .calibrate:
+            await model.stop()
+            await calibration.enterCalibrateMode()
+        case .run:
+            await model.stop()
+            await calibration.enterRunMode()
+        }
+    }
+
+    // MARK: Probe screen (Phase 1)
+
+    private var probeScreen: some View {
         HStack(spacing: 0) {
             cameraArea
                 .frame(minWidth: 480, minHeight: 360)
@@ -18,7 +83,6 @@ struct ContentView: View {
                 .frame(width: 240)
                 .padding()
         }
-        .frame(minWidth: 760, minHeight: 420)
     }
 
     // MARK: Camera area
@@ -115,7 +179,7 @@ struct ContentView: View {
             Button(model.isRunning ? "Stop" : "Start") {
                 Task {
                     if model.isRunning {
-                        model.stop()
+                        await model.stop()
                     } else {
                         await model.start()
                     }
@@ -141,6 +205,9 @@ struct ContentView: View {
         radians * 180 / .pi
     }
 }
+
+/// The three top-level screens.
+enum AppMode: Hashable { case probe, calibrate, run }
 
 #Preview {
     ContentView()
