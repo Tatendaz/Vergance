@@ -1,0 +1,16 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/
+xcuserdata/
+*.xcuserstate
+*.moved-aside
+
+# Claude Code (local / personal — not for the public repo)
+.claude/settings.local.json
+.claude/hooks/
+.claude/worktrees/
+
+# Session prompt-logs stay local (privacy); the feature docs are public
+docs/summaries/

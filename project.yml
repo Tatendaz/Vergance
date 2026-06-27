@@ -1,0 +1,63 @@
+name: Vergance
+options:
+  bundleIdPrefix: com.firesoftware
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+packages:
+  GazeKit:
+    path: .
+targets:
+  Vergance:
+    type: application
+    platform: macOS
+    sources:
+      - apps/macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.firesoftware.vergance
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: GazeKit
+        product: GazeKit
+    info:
+      path: apps/macOS/Info.plist
+      properties:
+        CFBundleDisplayName: Vergance
+        LSMinimumSystemVersion: "14.0"
+        NSCameraUsageDescription: Vergance uses the camera to track your gaze and mouth movements.
+        NSMicrophoneUsageDescription: Vergance uses the microphone to recognize spoken commands.
+        NSSpeechRecognitionUsageDescription: Vergance transcribes your speech to pair commands with where you look.
+    entitlements:
+      path: apps/macOS/Vergance.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.network.client: true
+        com.apple.security.network.server: true
+  VerganceCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - apps/iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.firesoftware.vergance.companion
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: GazeKit
+        product: GazeKit
+    info:
+      path: apps/iOS/Info.plist
+      properties:
+        CFBundleDisplayName: Vergance
+        UILaunchScreen: {}
+        NSCameraUsageDescription: Vergance uses the TrueDepth camera to track your gaze and face.
+        NSMicrophoneUsageDescription: Vergance uses the microphone to recognize spoken commands.
+        NSSpeechRecognitionUsageDescription: Vergance transcribes your speech to pair commands with where you look.
+        NSLocalNetworkUsageDescription: Vergance streams gaze data to the Mac app over your local network.
