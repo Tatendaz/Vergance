@@ -96,8 +96,22 @@ public enum GazeFeatures {
             t: t,
             gazeFeatures: [gx, gy],
             headPose: f.headPose,
+            headSpan: interEyeSpan(f),
             mouth: MouthSignal(openness: mouthAspectRatio(f.innerLips)),
             confidence: confidence
         )
+    }
+
+    /// Gaze-independent inter-eye distance: the distance between the two eye centers (each
+    /// the midpoint of that eye's corners). A proxy for head distance to the camera —
+    /// grows as you lean in, shrinks as you lean back. Eye corners don't move with gaze.
+    public static func interEyeSpan(_ f: FaceLandmarks) -> Double {
+        let lc = Point2D(x: (f.leftEye.innerCorner.x + f.leftEye.outerCorner.x) / 2,
+                         y: (f.leftEye.innerCorner.y + f.leftEye.outerCorner.y) / 2)
+        let rc = Point2D(x: (f.rightEye.innerCorner.x + f.rightEye.outerCorner.x) / 2,
+                         y: (f.rightEye.innerCorner.y + f.rightEye.outerCorner.y) / 2)
+        let dx = lc.x - rc.x
+        let dy = lc.y - rc.y
+        return (dx * dx + dy * dy).squareRoot()
     }
 }

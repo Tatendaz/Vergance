@@ -40,8 +40,19 @@ final class CalibrationViewModel: ObservableObject {
     @Published private(set) var fixationEvents: [FixationEvent] = []
     /// Total fixations this Run — never trimmed, unlike the capped `fixationEvents` history.
     @Published private(set) var fixationCount = 0
+    /// True when the head has drifted past `driftThreshold` from the calibration pose, so
+    /// the mapping is likely stale — the UI dims the cursor and prompts a recalibrate.
+    @Published private(set) var headDrifted = false
     private let fixationDetector = FixationDetector()
     private let maxLoggedFixations = 60
+
+    // Head-pose drift: a baseline captured during calibration vs. the live pose at run time.
+    private var calibrationHeadPose: HeadPose?
+    private var calibrationSpan: Double?
+    private var captureHeadPoses: [HeadPose] = []
+    private var captureSpans: [Double] = []
+    private let driftThreshold = 0.12        // pose drift, radians (~7°); tunable
+    private let spanRatioThreshold = 0.10    // distance drift: ±10% of inter-eye span; tunable
 
     /// Pixel size of the calibration view, reported by `CalibrationView`. Used as the
     /// screenWidth/Height for `fit()` (only scales the reported RMS error in pixels).
@@ -106,6 +117,7 @@ final class CalibrationViewModel: ObservableObject {
         fixationDetector.reset()
         fixationEvents = []
         fixationCount = 0
+        headDrifted = false
         cursor = nil
         sessionStart = SessionStart(
             screenW: Int(calibrationPixelSize.width),
@@ -132,6 +144,10 @@ final class CalibrationViewModel: ObservableObject {
         guard isRunning else { return }
         cancelCalibration()
         session = CalibrationSession(targets: targets)
+        captureHeadPoses = []
+        captureSpans = []
+        calibrationHeadPose = nil
+        calibrationSpan = nil
         currentDotIndex = 0
         calibrationState = .running
         activity = .calibrating
@@ -178,6 +194,8 @@ final class CalibrationViewModel: ObservableObject {
         if let result = session.fit(screenWidth: w, screenHeight: h) {
             calibrationModel = result.model
             rmsErrorPx = result.rmsErrorPx
+            calibrationHeadPose = meanPose(captureHeadPoses)
+            calibrationSpan = captureSpans.isEmpty ? nil : captureSpans.reduce(0, +) / Double(captureSpans.count)
             calibrationState = .done
         } else {
             calibrationState = .failed
@@ -194,13 +212,22 @@ final class CalibrationViewModel: ObservableObject {
         case .calibrating:
             // Record only inside a capture window. The gaze feature stays in true-image space
             // (no Phase-1 display mirror) so the model learns one consistent convention.
-            if isCapturing { session.add(targetIndex: currentDotIndex, gx: gx, gy: gy) }
+            if isCapturing {
+                session.add(targetIndex: currentDotIndex, gx: gx, gy: gy)
+                captureHeadPoses.append(sample.headPose)
+                captureSpans.append(sample.headSpan)
+            }
         case .running:
             guard let model = calibrationModel else { return }
             let mapped = filter.filter(model.map(gx, gy), at: sample.t)
             cursor = mapped
+            if let basePose = calibrationHeadPose {
+                let rotated = sample.headPose.angularDistance(to: basePose) > driftThreshold
+                let leaned = calibrationSpan.map { $0 > 1e-6 && abs(sample.headSpan / $0 - 1) > spanRatioThreshold } ?? false
+                headDrifted = rotated || leaned
+            }
             if let fixation = fixationDetector.add(mapped, at: sample.t) {
-                record(fixation)
+                record(fixation, confidence: headDrifted ? 0.5 : 1)
             }
         case .idle:
             break
@@ -208,12 +235,23 @@ final class CalibrationViewModel: ObservableObject {
     }
 
     /// Append a completed fixation as a Claude-facing event, capping the in-memory log.
-    private func record(_ fixation: Fixation) {
+    private func record(_ fixation: Fixation, confidence: Double = 1) {
         fixationCount += 1
-        fixationEvents.append(FixationEvent(fixation))
+        fixationEvents.append(FixationEvent(fixation, confidence: confidence))
         if fixationEvents.count > maxLoggedFixations {
             fixationEvents.removeFirst(fixationEvents.count - maxLoggedFixations)
         }
+    }
+
+    /// Per-axis mean of a set of head poses. Returns a zero pose for empty input.
+    private func meanPose(_ poses: [HeadPose]) -> HeadPose {
+        guard !poses.isEmpty else { return HeadPose() }
+        let n = Double(poses.count)
+        return HeadPose(
+            yaw: poses.reduce(0) { $0 + $1.yaw } / n,
+            pitch: poses.reduce(0) { $0 + $1.pitch } / n,
+            roll: poses.reduce(0) { $0 + $1.roll } / n
+        )
     }
 
     // MARK: Camera lifecycle (mirrors ProbeViewModel, incl. the stop-during-start guard)
