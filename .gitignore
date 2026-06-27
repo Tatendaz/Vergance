@@ -7,6 +7,10 @@ xcuserdata/
 *.xcuserstate
 *.moved-aside
 
+# XcodeGen output — regenerated from project.yml by `xcodegen generate`
+apps/**/Info.plist
+apps/**/*.entitlements
+
 # Claude Code (local / personal — not for the public repo)
 .claude/settings.local.json
 .claude/hooks/

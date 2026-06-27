@@ -1,0 +1,67 @@
+name: PR Gate
+
+# Server-side mirror of the local pre-push gate (tatendaz-github skill).
+# Complements ci.yml: it re-runs the GazeKit build + test so the gate is
+# self-contained, then enforces the repo's docs convention — every PR must
+# add or update a docs/features/*.md entry.
+#
+# NOTE: docs/summaries/ is intentionally NOT required here. Session prompt-logs
+# under docs/summaries/ are kept local and .gitignored for privacy, so the gate
+# only checks docs/features/.
+
+on:
+  pull_request:
+    branches: [main]
+
+# Least-privilege token: this gate only ever reads the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-gate:
+    name: GazeKit · build + test + docs gate
+    runs-on: macos-15
+    steps:
+      - name: Checkout (full history so the PR diff is available)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Docs gate — require a docs/features entry
+        # The PR base branch is passed via env (never interpolated directly
+        # into the shell) so the run step stays injection-safe. No untrusted
+        # event input (PR title/body/head branch) ever reaches the shell.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # checkout fetched full history but not the base branch ref itself,
+          # so make it available as origin/$BASE_REF for the diff below.
+          git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+          changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+          echo "Files changed in this PR:"
+          printf '%s\n' "$changed"
+
+          if printf '%s\n' "$changed" | grep -Eq '^docs/features/.+\.md$'; then
+            echo "Docs gate passed: this PR touches a docs/features/*.md entry."
+          else
+            echo "::error::Docs gate failed — this PR must add or update a docs/features/<name>.md entry."
+            echo "Reminder: docs/summaries/ is gitignored (local-only for privacy), so only docs/features/ is required."
+            exit 1
+          fi
