@@ -76,6 +76,18 @@ final class UtteranceFuserTests: XCTestCase {
         XCTAssertEqual(confidence, 1.0, accuracy: 1e-9)  // sole target → full share
     }
 
+    func testRepeatedRegionAggregatesIntoOneTarget() {
+        // Two during-fixations in the SAME 3×3 cell must collapse to one target with summed dwell,
+        // not two competing duplicates that split the score and falsely tie the primary margin.
+        let a = fix(10.1, 10.4, at: ScreenPoint(x: 0.50, y: 0.50))   // 300ms → r1c1
+        let b = fix(10.5, 10.9, at: ScreenPoint(x: 0.55, y: 0.52))   // 400ms → r1c1
+        let u = fuser.fuse(speech: window, fixations: [a, b], mouthSamples: [])
+        XCTAssertEqual(u.gazeTargets.count, 1)
+        XCTAssertEqual(u.gazeTargets.first?.id, "r1c1")
+        XCTAssertEqual(u.gazeTargets.first?.dwellMs ?? 0, 700, accuracy: 1e-9)
+        XCTAssertEqual(u.primaryTarget, "r1c1")   // sole region → unambiguous
+    }
+
     func testRegionIDGrid() {
         XCTAssertEqual(UtteranceFuser.regionID(for: ScreenPoint(x: 0.0, y: 0.0)), "r0c0")
         XCTAssertEqual(UtteranceFuser.regionID(for: ScreenPoint(x: 0.5, y: 0.5)), "r1c1")

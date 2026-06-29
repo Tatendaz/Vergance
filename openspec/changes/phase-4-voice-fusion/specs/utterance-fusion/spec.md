@@ -41,9 +41,11 @@ The fuser SHALL rank `gazeTargets` by a score that weights overlap class (`durin
 - **THEN** the one with the longer dwell is ranked first
 
 ### Requirement: primaryTarget heuristic
-The fuser SHALL set `primaryTarget` to the top-ranked target's id only when its score exceeds the
-runner-up's by a configured margin; otherwise `primaryTarget` SHALL be nil while the ranked
-alternatives remain available for Claude to disambiguate.
+When there are multiple candidate targets, the fuser SHALL set `primaryTarget` to the top-ranked
+target's id only when its score exceeds the runner-up's by a configured margin; otherwise
+`primaryTarget` SHALL be nil while the ranked alternatives remain available for Claude to
+disambiguate. When there is exactly one candidate target, the fuser SHALL set `primaryTarget` to
+its id (a lone candidate is unambiguous).
 
 #### Scenario: Clear winner sets primaryTarget
 - **WHEN** the top target's score exceeds the runner-up by more than the margin
@@ -52,6 +54,10 @@ alternatives remain available for Claude to disambiguate.
 #### Scenario: Near tie leaves primaryTarget nil
 - **WHEN** the top two targets are within the margin
 - **THEN** `primaryTarget` is nil and both appear in `gazeTargets`
+
+#### Scenario: Sole candidate is primary
+- **WHEN** exactly one candidate target overlaps the window
+- **THEN** `primaryTarget` is that target's id
 
 ### Requirement: Speech without gaze still emits
 When no fixation overlaps the window or its lead/trail margins, the fuser SHALL still emit the

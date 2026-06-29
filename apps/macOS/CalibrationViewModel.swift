@@ -56,6 +56,7 @@ final class CalibrationViewModel: ObservableObject {
     private let fuser = UtteranceFuser()
     private let speech = SpeechRecognizer()
     private var speechAuthorized = false
+    private var speechStartInFlight = false
     private var recentFixations: [Fixation] = []
     private var recentMouthSamples: [MouthSample] = []
     private let maxRecentFixations = 30
@@ -296,11 +297,16 @@ final class CalibrationViewModel: ObservableObject {
 
     /// Begin capturing speech. Requests microphone + speech authorization on first use.
     func startTalking() async {
-        guard activity == .running, !isTalking else { return }
+        guard activity == .running, !isTalking, !speechStartInFlight else { return }
+        speechStartInFlight = true
+        defer { speechStartInFlight = false }
         if !speechAuthorized {
-            speechAuthorized = await speech.requestAuthorization()
+            let authorized = await speech.requestAuthorization()
+            guard activity == .running else { return }   // left Run mode during the prompt
+            speechAuthorized = authorized
             guard speechAuthorized else { speechState = .denied; return }
         }
+        guard activity == .running, !isTalking else { return }   // re-check after the await
         do {
             try speech.startCapture()
             talkStartTime = lastSampleTime

@@ -29,10 +29,10 @@ or emits them yet.
 - **Non-breaking**: no existing type changes; the existing `Utterance` shape is the target.
 
 **Scope boundary.** Resolving a gaze point to a *named* element (`cta-primary`) is Phase 5.
-Phase 4 ranks the fixations that overlap the speech window and labels each `gazeTarget` with
-whatever `id` the fixation stream currently carries (a geometric/region placeholder until
-Phase 5). When element resolution lands, utterances inherit named targets with no change to
-the fusion logic.
+Phase 4 ranks the fixations that overlap the speech window and labels each `gazeTarget` with a
+geometric 3×3 region id synthesized from the fixation centroid (a placeholder until Phase 5).
+When element resolution lands, utterances inherit named targets with no change to the fusion
+logic.
 
 ## Capabilities
 

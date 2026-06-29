@@ -107,11 +107,11 @@ final class SpeechRecognizer {
         audioEngine.inputNode.removeTap(onBus: 0)
     }
 
-    /// Mean of the per-segment confidences the recognizer reports (segments it's unsure of read 0).
+    /// Mean of the per-segment confidences across all segments. A segment the recognizer is unsure
+    /// of reports 0, which should drag the mean down — so it's included, not filtered out.
     private static func meanConfidence(_ t: SFTranscription) -> Double {
-        let scored = t.segments.filter { $0.confidence > 0 }
-        guard !scored.isEmpty else { return 0 }
-        return scored.reduce(0.0) { $0 + Double($1.confidence) } / Double(scored.count)
+        guard !t.segments.isEmpty else { return 0 }
+        return t.segments.reduce(0.0) { $0 + Double($1.confidence) } / Double(t.segments.count)
     }
 }
 

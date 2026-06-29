@@ -40,6 +40,15 @@ public struct UtteranceFuser: Sendable {
 
     private static let classWeight: [Overlap: Double] = [.during: 1.0, .leading: 0.5, .trailing: 0.4]
 
+    /// Lower rank = stronger overlap; used to keep the best class when aggregating a region.
+    private static func classRank(_ o: Overlap) -> Int {
+        switch o {
+        case .during: return 0
+        case .leading: return 1
+        case .trailing: return 2
+        }
+    }
+
     public init(
         leadMargin: TimeInterval = 0.4,
         trailMargin: TimeInterval = 0.3,
@@ -61,33 +70,53 @@ public struct UtteranceFuser: Sendable {
     }
 
     /// Build the ``Utterance`` from a speech window, the fixation stream, and the mouth samples.
+    ///
+    /// Overlapping fixations are grouped by region id first, so several glances at the same region
+    /// aggregate into one target (summed dwell, strongest overlap) rather than competing as
+    /// duplicates — otherwise the primary margin could read as a tie against the region itself.
     public func fuse(speech: SpeechResult, fixations: [Fixation], mouthSamples: [MouthSample]) -> Utterance {
-        let scored: [(target: GazeTarget, score: Double)] = fixations.compactMap { fix in
-            guard let ov = overlap(of: fix, windowStart: speech.tStart, windowEnd: speech.tEnd) else { return nil }
-            let score = (Self.classWeight[ov] ?? 0) + dwellWeightPerSecond * (fix.durationMs / 1000)
-            let target = GazeTarget(
-                id: Self.regionID(for: fix.centroid),
-                role: "region",
-                dwellMs: fix.durationMs,
-                overlap: ov.rawValue
-            )
-            return (target, score)
+        struct Aggregate { var overlap: Overlap; var dwellMs: Double }
+        var byRegion: [String: Aggregate] = [:]
+        var order: [String] = []   // first-seen order, for a deterministic tiebreak
+        for fix in fixations {
+            guard let ov = overlap(of: fix, windowStart: speech.tStart, windowEnd: speech.tEnd) else { continue }
+            let id = Self.regionID(for: fix.centroid)
+            if var agg = byRegion[id] {
+                agg.dwellMs += fix.durationMs
+                if Self.classRank(ov) < Self.classRank(agg.overlap) { agg.overlap = ov }
+                byRegion[id] = agg
+            } else {
+                byRegion[id] = Aggregate(overlap: ov, dwellMs: fix.durationMs)
+                order.append(id)
+            }
         }
-        .sorted { $0.score > $1.score }
+
+        func score(_ a: Aggregate) -> Double {
+            (Self.classWeight[a.overlap] ?? 0) + dwellWeightPerSecond * (a.dwellMs / 1000)
+        }
+        let ranked = order.map { (id: $0, agg: byRegion[$0]!) }
+            .sorted { lhs, rhs in
+                let ls = score(lhs.agg), rs = score(rhs.agg)
+                return ls == rs ? lhs.id < rhs.id : ls > rs   // deterministic on ties
+            }
 
         // Expose each target's confidence as its share of the total score — interpretable and
         // monotonic with rank, without faking a calibrated probability.
-        let total = scored.reduce(0) { $0 + $1.score }
-        let gazeTargets: [GazeTarget] = scored.map { item in
-            var t = item.target
-            t.confidence = total > 0 ? item.score / total : nil
-            return t
+        let total = ranked.reduce(0.0) { $0 + score($1.agg) }
+        let gazeTargets: [GazeTarget] = ranked.map { item in
+            GazeTarget(
+                id: item.id,
+                role: "region",
+                dwellMs: item.agg.dwellMs,
+                overlap: item.agg.overlap.rawValue,
+                confidence: total > 0 ? score(item.agg) / total : nil
+            )
         }
 
         let primaryTarget: String? = {
-            guard let top = scored.first else { return nil }       // no gaze → text-only utterance
-            guard scored.count > 1 else { return top.target.id }   // single candidate is unambiguous
-            return top.score - scored[1].score >= primaryMargin ? top.target.id : nil
+            guard let top = ranked.first else { return nil }        // no gaze → text-only utterance
+            guard ranked.count > 1 else { return top.id }           // single candidate is unambiguous
+            return score(top.agg) - score(ranked[1].agg) >= primaryMargin ? top.id : nil
         }()
 
         return Utterance(

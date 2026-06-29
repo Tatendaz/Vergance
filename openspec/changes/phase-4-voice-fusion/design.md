@@ -35,8 +35,9 @@ Constraints that shape the design:
 ## Decisions
 
 ### 1. Layering: pure logic in GazeKit, capture in the app
-`MouthAspectRatio` (geometry over lip points) and `UtteranceFuser` (window + fixations →
-`Utterance`) go in `GazeKit` — no platform imports, fully unit-tested, mirroring how
+The mouth-aspect-ratio helper (`GazeFeatures.mouthAspectRatio`) with `MouthSample` /
+`VoiceActivity`, and `UtteranceFuser` (window + fixations → `Utterance`), go in `GazeKit` —
+no platform imports, fully unit-tested, mirroring how
 `CalibrationFitter` / `FixationDetector` already live there. `SpeechRecognizer` (Speech +
 AVFoundation) and the Vision-landmark→MAR feed live in `apps/macOS`.
 *Alternative considered:* put the fuser in the app for direct access to live state — rejected; it
