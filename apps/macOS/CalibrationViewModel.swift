@@ -46,6 +46,24 @@ final class CalibrationViewModel: ObservableObject {
     private let fixationDetector = FixationDetector()
     private let maxLoggedFixations = 60
 
+    // MARK: Utterance stream (Phase 4) — speech fused with the gaze held while speaking.
+    enum SpeechState: Equatable { case idle, listening, noSpeech, denied, error(String) }
+    @Published var speechState: SpeechState = .idle
+    @Published private(set) var isTalking = false
+    @Published private(set) var lastUtterance: Utterance?
+    @Published private(set) var utteranceCount = 0
+
+    private let fuser = UtteranceFuser()
+    private let speech = SpeechRecognizer()
+    private var speechAuthorized = false
+    private var speechStartInFlight = false
+    private var recentFixations: [Fixation] = []
+    private var recentMouthSamples: [MouthSample] = []
+    private let maxRecentFixations = 30
+    private let maxRecentMouthSamples = 600        // ~20s at 30fps
+    private var lastSampleTime: TimeInterval = 0   // newest sample.t — the gaze clock for windows
+    private var talkStartTime: TimeInterval = 0
+
     // Head-pose drift: a baseline captured during calibration vs. the live pose at run time.
     private var calibrationHeadPose: HeadPose?
     private var calibrationSpan: Double?
@@ -118,6 +136,13 @@ final class CalibrationViewModel: ObservableObject {
         fixationEvents = []
         fixationCount = 0
         headDrifted = false
+        recentFixations = []
+        recentMouthSamples = []
+        lastUtterance = nil
+        utteranceCount = 0
+        isTalking = false
+        speechState = .idle
+        lastSampleTime = 0
         cursor = nil
         sessionStart = SessionStart(
             screenW: Int(calibrationPixelSize.width),
@@ -132,6 +157,7 @@ final class CalibrationViewModel: ObservableObject {
     func stop() async {
         cancelCalibration()
         if let fixation = fixationDetector.flush() { record(fixation) }
+        if isTalking { isTalking = false; _ = await speech.stopCapture() }
         activity = .idle
         cursor = nil
         await stopCamera()
@@ -219,6 +245,8 @@ final class CalibrationViewModel: ObservableObject {
             }
         case .running:
             guard let model = calibrationModel else { return }
+            lastSampleTime = sample.t
+            appendMouthSample(MouthSample(sample))
             let mapped = filter.filter(model.map(gx, gy), at: sample.t)
             cursor = mapped
             if let basePose = calibrationHeadPose {
@@ -241,6 +269,17 @@ final class CalibrationViewModel: ObservableObject {
         if fixationEvents.count > maxLoggedFixations {
             fixationEvents.removeFirst(fixationEvents.count - maxLoggedFixations)
         }
+        recentFixations.append(fixation)
+        if recentFixations.count > maxRecentFixations {
+            recentFixations.removeFirst(recentFixations.count - maxRecentFixations)
+        }
+    }
+
+    private func appendMouthSample(_ s: MouthSample) {
+        recentMouthSamples.append(s)
+        if recentMouthSamples.count > maxRecentMouthSamples {
+            recentMouthSamples.removeFirst(recentMouthSamples.count - maxRecentMouthSamples)
+        }
     }
 
     /// Per-axis mean of a set of head poses. Returns a zero pose for empty input.
@@ -252,6 +291,62 @@ final class CalibrationViewModel: ObservableObject {
             pitch: poses.reduce(0) { $0 + $1.pitch } / n,
             roll: poses.reduce(0) { $0 + $1.roll } / n
         )
+    }
+
+    // MARK: Push-to-talk (Phase 4)
+
+    /// Begin capturing speech. Requests microphone + speech authorization on first use.
+    func startTalking() async {
+        guard activity == .running, !isTalking, !speechStartInFlight else { return }
+        speechStartInFlight = true
+        defer { speechStartInFlight = false }
+        if !speechAuthorized {
+            let authorized = await speech.requestAuthorization()
+            guard activity == .running else { return }   // left Run mode during the prompt
+            speechAuthorized = authorized
+            guard speechAuthorized else { speechState = .denied; return }
+        }
+        guard activity == .running, !isTalking else { return }   // re-check after the await
+        do {
+            try speech.startCapture()
+            talkStartTime = lastSampleTime
+            isTalking = true
+            speechState = .listening
+        } catch {
+            let message = (error as? SpeechRecognizer.CaptureError)?.errorDescription ?? error.localizedDescription
+            speechState = .error(message)
+        }
+    }
+
+    /// Stop capturing, fuse the recognized text with the gaze held while speaking, and publish the
+    /// resulting `Utterance`. The window is `[talkStart, release]` on the shared gaze clock.
+    func stopTalking() async {
+        guard isTalking else { return }
+        isTalking = false
+        let windowEnd = lastSampleTime
+        // The user may have held their gaze on the target through the whole utterance, so that
+        // fixation hasn't been emitted yet — flush it so fusion can see it.
+        if let inProgress = fixationDetector.flush() {
+            record(inProgress, confidence: headDrifted ? 0.5 : 1)
+        }
+        // Snapshot before the await so reentrant sample handling can't change what we fuse.
+        let fixations = recentFixations
+        let mouthSamples = recentMouthSamples
+        let windowStart = talkStartTime
+
+        guard let transcription = await speech.stopCapture() else {
+            speechState = .noSpeech
+            return
+        }
+        let result = SpeechResult(
+            text: transcription.text,
+            confidence: transcription.confidence,
+            tStart: windowStart,
+            tEnd: max(windowStart, windowEnd)
+        )
+        lastUtterance = fuser.fuse(speech: result, fixations: fixations, mouthSamples: mouthSamples)
+        utteranceCount += 1
+        speechState = .idle
     }
 
     // MARK: Camera lifecycle (mirrors ProbeViewModel, incl. the stop-during-start guard)

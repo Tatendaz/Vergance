@@ -40,6 +40,16 @@ final class FaceLandmarksTests: XCTestCase {
         XCTAssertEqual(GazeFeatures.mouthAspectRatio([]), 0, accuracy: 1e-9)
     }
 
+    func testMouthAspectRatioIsDistanceInvariant() {
+        // Leaning in/out scales the face in the image; normalizing by mouth width keeps MAR stable.
+        let near = [
+            Point2D(x: 0.4, y: 0.48), Point2D(x: 0.6, y: 0.48),
+            Point2D(x: 0.4, y: 0.52), Point2D(x: 0.6, y: 0.52),
+        ]
+        let far = near.map { Point2D(x: $0.x * 0.5, y: $0.y * 0.5) }   // same face, half the size
+        XCTAssertEqual(GazeFeatures.mouthAspectRatio(near), GazeFeatures.mouthAspectRatio(far), accuracy: 1e-9)
+    }
+
     func testSampleAssemblesGazeSample() {
         let left = eye(inner: (0.3, 0.5), outer: (0.4, 0.5), pupil: (0.35, 0.5))
         let right = eye(inner: (0.6, 0.5), outer: (0.7, 0.5), pupil: (0.65, 0.5))
