@@ -158,7 +158,7 @@ All four are implemented as `Codable` types in `GazeKit/Events.swift`.
 | **2** | Calibration + mapping | 9-point red-dot UI, ridge regression, One Euro, live RMS-error readout | Produces the mapping everything downstream needs |
 | **3** | Fixation + events | Dwell/dispersion detector → `session_start` + `fixation` emit | First real event stream |
 | **4** | Voice fusion | `SFSpeechRecognizer` + lip-MAR voice-activity → `utterance` events | ✅ done — 35 tests green, app builds, voice→utterance validated on-device |
-| **5** | Element resolution | Staged surfaces: (a) own canvas → (b) browser DOM → (c) Accessibility API; `primaryTarget` heuristic | Turns coordinates into `cta-primary` |
+| **5** | Element resolution | Staged surfaces: (a) own canvas → (b) browser DOM → (c) Accessibility API; `primaryTarget` heuristic | 🚧 (a) own-canvas ✅ done — 46 tests green, named `cta-primary` targets validated on-device; (b) DOM + (c) AX pending |
 | **6** | Claude integration + skill | Ship a **Vergance Claude Code skill** (`/vergance`) that starts gaze+voice capture and streams gaze-resolved utterances into the agent session, which edits project files | The payoff loop — and the natural home for "local agent edits files" |
 | **7** | iPhone TrueDepth | iOS companion, ARKit sensor, Bonjour stream, dual-sensor live | The accuracy upgrade |
 | **8** | Heatmap / UX mode | `session_summary` aggregation + heatmap & scanpath viz | Second product surface |

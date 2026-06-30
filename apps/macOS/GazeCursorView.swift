@@ -17,6 +17,14 @@ struct GazeCursorView: View {
                     CameraIssueView(authorization: calibration.authorization,
                                     errorMessage: calibration.errorMessage)
                 } else {
+                    // Phase 5: Vergance's own canvas — named elements the gaze resolves against.
+                    ForEach(DemoCanvas.elements, id: \.id) { el in
+                        ElementTile(element: el, highlighted: highlightedID == el.id)
+                            .frame(width: el.rect.w * geo.size.width, height: el.rect.h * geo.size.height)
+                            .position(x: (el.rect.x + el.rect.w / 2) * geo.size.width,
+                                      y: (el.rect.y + el.rect.h / 2) * geo.size.height)
+                    }
+
                     // Recent fixations — translucent discs sized by dwell time.
                     ForEach(calibration.fixationEvents.suffix(15), id: \.tStart) { event in
                         FixationMarker(dwell: event.tEnd - event.tStart)
@@ -55,6 +63,7 @@ struct GazeCursorView: View {
                     .padding(16)
                 }
             }
+            .onAppear { calibration.registerElements(DemoCanvas.elements) }
         }
     }
 
@@ -159,7 +168,8 @@ struct GazeCursorView: View {
     @ViewBuilder
     private func targetLine(_ u: Utterance) -> some View {
         if let primary = u.primaryTarget {
-            Text("→ \(primary)")
+            let label = u.gazeTargets.first { $0.id == primary }?.label
+            Text("→ \(primary)\(label.map { " (\($0))" } ?? "")")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.green)
         } else if !u.gazeTargets.isEmpty {
@@ -169,6 +179,13 @@ struct GazeCursorView: View {
             Text("→ no gaze target")
                 .font(.caption).foregroundStyle(.white.opacity(0.5))
         }
+    }
+
+    /// The element to highlight: the one under the live cursor, else the last utterance's resolved
+    /// primary target — so a glance lights a tile and speaking confirms the pick.
+    private var highlightedID: String? {
+        if let c = calibration.cursor, let hit = calibration.elementMap.hitTest(c) { return hit.id }
+        return calibration.lastUtterance?.primaryTarget
     }
 
     /// Keep the ring on-screen even if the quadratic mapping extrapolates outside [0, 1].
@@ -201,4 +218,51 @@ private struct FixationMarker: View {
             .frame(width: size, height: size)
             .allowsHitTesting(false)
     }
+}
+
+/// A named element on Vergance's own canvas, drawn as a labeled tile. Highlights when the gaze is
+/// on it (or it was the last utterance's resolved target). Non-interactive — gaze does the pointing.
+private struct ElementTile: View {
+    let element: Element
+    let highlighted: Bool
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(highlighted ? Color.accentColor.opacity(0.30) : Color.white.opacity(0.06))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(highlighted ? Color.accentColor : Color.white.opacity(0.18),
+                            lineWidth: highlighted ? 2 : 1)
+            )
+            .overlay(
+                VStack(spacing: 2) {
+                    Text(element.label ?? element.id)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                    Text(element.id)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+                .multilineTextAlignment(.center)
+                .padding(6)
+            )
+            .allowsHitTesting(false)
+    }
+}
+
+/// Vergance's own canvas — staged surface (a). A few named, look-at-able elements the gaze resolves
+/// against, in normalized [0, 1] screen space (origin top-left), the same space as the gaze cursor.
+/// These exact rects are both drawn and registered into the view model, so what you see is what
+/// gaze resolves against. Browser-DOM and Accessibility surfaces (b/c) will supply their own maps.
+enum DemoCanvas {
+    static let elements: [Element] = [
+        Element(id: "headline", role: "text", label: "Big bold headline",
+                rect: Rect(x: 0.14, y: 0.22, w: 0.58, h: 0.12)),
+        Element(id: "cta-primary", role: "button", label: "Get started",
+                rect: Rect(x: 0.14, y: 0.38, w: 0.27, h: 0.16)),
+        Element(id: "cta-secondary", role: "button", label: "Learn more",
+                rect: Rect(x: 0.45, y: 0.38, w: 0.27, h: 0.16)),
+        Element(id: "media", role: "image", label: "Preview image",
+                rect: Rect(x: 0.14, y: 0.58, w: 0.58, h: 0.12)),
+    ]
 }
