@@ -137,6 +137,12 @@ final class ElementMapTests: XCTestCase {
         XCTAssertEqual(t.overlap, "during")
         XCTAssertEqual(t.confidence, 0.7)
     }
+
+    func testResolveHandlesNonFiniteCoordinate() {
+        // A degenerate gaze point (e.g. a filter blow-up) must not trap the region fallback.
+        XCTAssertEqual(ElementMap().resolve(ScreenPoint(x: .nan, y: .nan)).id, "r0c0")
+        XCTAssertEqual(ElementMap().resolve(ScreenPoint(x: .infinity, y: 0.5)).id, "r1c0")
+    }
 }
 
 final class EventsTests: XCTestCase {

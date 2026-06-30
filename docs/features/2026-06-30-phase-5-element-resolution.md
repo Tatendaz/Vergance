@@ -11,7 +11,7 @@ the app's own canvas** (roadmap §6 #4); browser-DOM (b) and Accessibility-API (
 the same capability later.
 
 ## What changed
-- **GazeKit** (platform-agnostic, +10 tests → 46 total green):
+- **GazeKit** (platform-agnostic, +12 tests → 48 total green):
   - `ElementMap.resolve(_:dwellMs:overlap:confidence:)` — the single resolution path: the
     containing element's id/role/label (topmost-match-wins via the existing `hitTest`), else a
     geometric region-id fallback (`UtteranceFuser.regionID`) so a candidate target is never dropped.
@@ -41,6 +41,9 @@ the same capability later.
 - The empty-map region fallback keeps the "speech without gaze still emits" guarantee and means
   uncalibrated/unregistered gaze still produces region-level targets.
 - Out of scope (future Phase 5 sub-surfaces): browser-DOM and Accessibility-API resolution.
-- Verification: `swift test` 46/46 green; the macOS app `BUILD SUCCEEDED` via headless `xcodebuild`
+- Hardened the region fallback against non-finite gaze coordinates and the fuser's voice-activity
+  window against an inverted `[tStart, tEnd]` span (both from CodeRabbit, with regression tests).
+  Pre-existing push-to-talk concurrency findings are tracked as a separate follow-up.
+- Verification: `swift test` 48/48 green; the macOS app `BUILD SUCCEEDED` via headless `xcodebuild`
   (Xcode 26.5); **validated on-device** — looking at a tile while speaking produces that tile's
   named id as the utterance's `primaryTarget`.

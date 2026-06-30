@@ -136,7 +136,10 @@ public struct UtteranceFuser: Sendable {
             speechConfidence: speech.confidence,
             gazeTargets: gazeTargets,
             primaryTarget: primaryTarget,
-            voiceActivity: VoiceActivity(from: mouthSamples, in: speech.tStart...speech.tEnd)
+            voiceActivity: VoiceActivity(
+                from: mouthSamples,
+                in: min(speech.tStart, speech.tEnd)...max(speech.tStart, speech.tEnd)
+            )
         )
     }
 
@@ -144,7 +147,10 @@ public struct UtteranceFuser: Sendable {
     /// top-left. Used by ``ElementMap/resolve(_:dwellMs:overlap:confidence:)`` as the fallback when
     /// a gaze point hits no named element.
     static func regionID(for p: ScreenPoint) -> String {
-        func cell(_ v: Double) -> Int { min(2, max(0, Int(v * 3))) }
+        func cell(_ v: Double) -> Int {
+            guard v.isFinite else { return 0 }   // NaN/±inf coordinate → safe first cell, never trap
+            return min(2, max(0, Int(v * 3)))
+        }
         return "r\(cell(p.y))c\(cell(p.x))"
     }
 }

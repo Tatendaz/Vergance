@@ -125,6 +125,14 @@ final class UtteranceFuserTests: XCTestCase {
         XCTAssertEqual(explicit.gazeTargets, implicit.gazeTargets)
     }
 
+    func testInvertedSpeechWindowDoesNotTrap() {
+        // A malformed window (tStart > tEnd) must not trap when building the voice-activity range.
+        let inverted = SpeechResult(text: "x", confidence: 0.5, tStart: 11.0, tEnd: 10.0)
+        let u = fuser.fuse(speech: inverted, fixations: [], mouthSamples: [])
+        XCTAssertEqual(u.text, "x")
+        XCTAssertEqual(u.voiceActivity.jawOpenMean, 0, accuracy: 1e-9)
+    }
+
     func testRegionIDGrid() {
         XCTAssertEqual(UtteranceFuser.regionID(for: ScreenPoint(x: 0.0, y: 0.0)), "r0c0")
         XCTAssertEqual(UtteranceFuser.regionID(for: ScreenPoint(x: 0.5, y: 0.5)), "r1c1")
