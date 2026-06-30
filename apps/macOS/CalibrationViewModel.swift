@@ -46,6 +46,14 @@ final class CalibrationViewModel: ObservableObject {
     private let fixationDetector = FixationDetector()
     private let maxLoggedFixations = 60
 
+    // MARK: Element resolution (Phase 5) — the active surface's named elements, in the same
+    // normalized [0, 1] space as `cursor`/fixations. Gaze resolves against this in fusion + fixations.
+    private(set) var elementMap = ElementMap()
+
+    /// Register the active surface's named elements (the Run screen's own canvas). Gaze that hits
+    /// none of them falls back to a geometric region id, so resolution never drops a target.
+    func registerElements(_ elements: [Element]) { elementMap = ElementMap(elements: elements) }
+
     // MARK: Utterance stream (Phase 4) — speech fused with the gaze held while speaking.
     enum SpeechState: Equatable { case idle, listening, noSpeech, denied, error(String) }
     @Published var speechState: SpeechState = .idle
@@ -265,7 +273,7 @@ final class CalibrationViewModel: ObservableObject {
     /// Append a completed fixation as a Claude-facing event, capping the in-memory log.
     private func record(_ fixation: Fixation, confidence: Double = 1) {
         fixationCount += 1
-        fixationEvents.append(FixationEvent(fixation, confidence: confidence))
+        fixationEvents.append(FixationEvent(fixation, resolvedBy: elementMap, confidence: confidence))
         if fixationEvents.count > maxLoggedFixations {
             fixationEvents.removeFirst(fixationEvents.count - maxLoggedFixations)
         }
@@ -333,6 +341,7 @@ final class CalibrationViewModel: ObservableObject {
         let fixations = recentFixations
         let mouthSamples = recentMouthSamples
         let windowStart = talkStartTime
+        let elements = elementMap
 
         guard let transcription = await speech.stopCapture() else {
             speechState = .noSpeech
@@ -344,7 +353,7 @@ final class CalibrationViewModel: ObservableObject {
             tStart: windowStart,
             tEnd: max(windowStart, windowEnd)
         )
-        lastUtterance = fuser.fuse(speech: result, fixations: fixations, mouthSamples: mouthSamples)
+        lastUtterance = fuser.fuse(speech: result, fixations: fixations, mouthSamples: mouthSamples, elements: elements)
         utteranceCount += 1
         speechState = .idle
     }

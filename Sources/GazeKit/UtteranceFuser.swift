@@ -21,9 +21,10 @@ public struct SpeechResult: Sendable, Equatable {
 /// Fuses a recognized speech window with the fixation stream and mouth-openness samples into a
 /// single Claude-facing ``Utterance`` — the deixis-resolving core object ("make *this* bigger").
 ///
-/// Until element resolution lands (Phase 5), each ``GazeTarget`` carries a geometric region id (a
-/// 3×3 screen cell) rather than a named element. The ranking and `primaryTarget` heuristic are
-/// unchanged when real element ids arrive.
+/// Each ``GazeTarget`` is resolved against the active surface's ``ElementMap`` to a named element
+/// (`id`/`role`/`label`); a fixation that hits no element falls back to a geometric region id, so
+/// an empty map reproduces the pre-element-resolution behavior. Ranking and `primaryTarget` are
+/// unchanged by resolution — only target identity changes.
 public struct UtteranceFuser: Sendable {
     /// How a fixation sits relative to the speech window.
     public enum Overlap: String, Sendable {
@@ -69,24 +70,36 @@ public struct UtteranceFuser: Sendable {
         return nil
     }
 
-    /// Build the ``Utterance`` from a speech window, the fixation stream, and the mouth samples.
+    /// Build the ``Utterance`` from a speech window, the fixation stream, the mouth samples, and the
+    /// active surface's ``ElementMap``.
     ///
-    /// Overlapping fixations are grouped by region id first, so several glances at the same region
+    /// Overlapping fixations are resolved against `elements` (named element, else a geometric region
+    /// fallback) and grouped by resolved target id first, so several glances at the same element
     /// aggregate into one target (summed dwell, strongest overlap) rather than competing as
-    /// duplicates — otherwise the primary margin could read as a tie against the region itself.
-    public func fuse(speech: SpeechResult, fixations: [Fixation], mouthSamples: [MouthSample]) -> Utterance {
-        struct Aggregate { var overlap: Overlap; var dwellMs: Double }
-        var byRegion: [String: Aggregate] = [:]
+    /// duplicates — otherwise the primary margin could read as a tie against the element itself.
+    public func fuse(
+        speech: SpeechResult,
+        fixations: [Fixation],
+        mouthSamples: [MouthSample],
+        elements: ElementMap = ElementMap()
+    ) -> Utterance {
+        // Normalize the window once: a malformed [tStart > tEnd] must not misbucket overlap
+        // classification or trap the voice-activity range.
+        let windowStart = min(speech.tStart, speech.tEnd)
+        let windowEnd = max(speech.tStart, speech.tEnd)
+        struct Aggregate { var role: String?; var label: String?; var overlap: Overlap; var dwellMs: Double }
+        var byID: [String: Aggregate] = [:]
         var order: [String] = []   // first-seen order, for a deterministic tiebreak
         for fix in fixations {
-            guard let ov = overlap(of: fix, windowStart: speech.tStart, windowEnd: speech.tEnd) else { continue }
-            let id = Self.regionID(for: fix.centroid)
-            if var agg = byRegion[id] {
+            guard let ov = overlap(of: fix, windowStart: windowStart, windowEnd: windowEnd) else { continue }
+            let resolved = elements.resolve(fix.centroid)   // named element id, else region-id fallback
+            let id = resolved.id
+            if var agg = byID[id] {
                 agg.dwellMs += fix.durationMs
                 if Self.classRank(ov) < Self.classRank(agg.overlap) { agg.overlap = ov }
-                byRegion[id] = agg
+                byID[id] = agg
             } else {
-                byRegion[id] = Aggregate(overlap: ov, dwellMs: fix.durationMs)
+                byID[id] = Aggregate(role: resolved.role, label: resolved.label, overlap: ov, dwellMs: fix.durationMs)
                 order.append(id)
             }
         }
@@ -94,7 +107,7 @@ public struct UtteranceFuser: Sendable {
         func score(_ a: Aggregate) -> Double {
             (Self.classWeight[a.overlap] ?? 0) + dwellWeightPerSecond * (a.dwellMs / 1000)
         }
-        let ranked = order.map { (id: $0, agg: byRegion[$0]!) }
+        let ranked = order.map { (id: $0, agg: byID[$0]!) }
             .sorted { lhs, rhs in
                 let ls = score(lhs.agg), rs = score(rhs.agg)
                 return ls == rs ? lhs.id < rhs.id : ls > rs   // deterministic on ties
@@ -106,7 +119,8 @@ public struct UtteranceFuser: Sendable {
         let gazeTargets: [GazeTarget] = ranked.map { item in
             GazeTarget(
                 id: item.id,
-                role: "region",
+                role: item.agg.role,
+                label: item.agg.label,
                 dwellMs: item.agg.dwellMs,
                 overlap: item.agg.overlap.rawValue,
                 confidence: total > 0 ? score(item.agg) / total : nil
@@ -120,20 +134,24 @@ public struct UtteranceFuser: Sendable {
         }()
 
         return Utterance(
-            tStart: speech.tStart,
-            tEnd: speech.tEnd,
+            tStart: windowStart,
+            tEnd: windowEnd,
             text: speech.text,
             speechConfidence: speech.confidence,
             gazeTargets: gazeTargets,
             primaryTarget: primaryTarget,
-            voiceActivity: VoiceActivity(from: mouthSamples, in: speech.tStart...speech.tEnd)
+            voiceActivity: VoiceActivity(from: mouthSamples, in: windowStart...windowEnd)
         )
     }
 
-    /// Geometric placeholder id: the 3×3 screen cell ("r{row}c{col}") the centroid lands in,
-    /// origin top-left. Replaced by real element ids in Phase 5 without changing fusion.
+    /// Geometric region id: the 3×3 screen cell ("r{row}c{col}") the centroid lands in, origin
+    /// top-left. Used by ``ElementMap/resolve(_:dwellMs:overlap:confidence:)`` as the fallback when
+    /// a gaze point hits no named element.
     static func regionID(for p: ScreenPoint) -> String {
-        func cell(_ v: Double) -> Int { min(2, max(0, Int(v * 3))) }
+        func cell(_ v: Double) -> Int {
+            guard v.isFinite else { return 0 }   // NaN/±inf coordinate → safe first cell, never trap
+            return min(2, max(0, Int(v * 3)))
+        }
         return "r\(cell(p.y))c\(cell(p.x))"
     }
 }

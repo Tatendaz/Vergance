@@ -88,6 +88,56 @@ final class UtteranceFuserTests: XCTestCase {
         XCTAssertEqual(u.primaryTarget, "r1c1")   // sole region → unambiguous
     }
 
+    // MARK: - Element resolution (Phase 5)
+
+    private let cta = Element(
+        id: "cta-primary", role: "button", label: "Sign up",
+        rect: Rect(x: 0.4, y: 0.4, w: 0.2, h: 0.2)
+    )
+
+    func testOverlappingFixationResolvesToNamedElement() {
+        let map = ElementMap(elements: [cta])
+        let during = fix(10.2, 10.8, at: ScreenPoint(x: 0.5, y: 0.5))   // inside cta, intersects window
+        let u = fuser.fuse(speech: window, fixations: [during], mouthSamples: [], elements: map)
+        XCTAssertEqual(u.gazeTargets.first?.id, "cta-primary")
+        XCTAssertEqual(u.gazeTargets.first?.role, "button")
+        XCTAssertEqual(u.gazeTargets.first?.label, "Sign up")
+        XCTAssertEqual(u.primaryTarget, "cta-primary")
+    }
+
+    func testRepeatedElementAggregatesIntoOneTarget() {
+        let map = ElementMap(elements: [cta])
+        let a = fix(10.1, 10.4, at: ScreenPoint(x: 0.45, y: 0.45))   // 300ms, inside cta
+        let b = fix(10.5, 10.9, at: ScreenPoint(x: 0.55, y: 0.55))   // 400ms, inside cta
+        let u = fuser.fuse(speech: window, fixations: [a, b], mouthSamples: [], elements: map)
+        XCTAssertEqual(u.gazeTargets.count, 1)
+        XCTAssertEqual(u.gazeTargets.first?.id, "cta-primary")
+        XCTAssertEqual(u.gazeTargets.first?.dwellMs ?? 0, 700, accuracy: 1e-9)
+    }
+
+    func testEmptyMapReproducesRegionOutput() {
+        // The defaulted empty map and an explicit empty map must both yield region ids (Phase 4 behavior).
+        let during = fix(10.2, 10.8, at: ScreenPoint(x: 0.5, y: 0.5))
+        let implicit = fuser.fuse(speech: window, fixations: [during], mouthSamples: [])
+        let explicit = fuser.fuse(speech: window, fixations: [during], mouthSamples: [], elements: ElementMap())
+        XCTAssertEqual(implicit.gazeTargets.first?.id, "r1c1")
+        XCTAssertEqual(implicit.gazeTargets.first?.role, "region")
+        XCTAssertEqual(explicit.gazeTargets, implicit.gazeTargets)
+    }
+
+    func testInvertedSpeechWindowIsNormalized() {
+        // A malformed window (tStart > tEnd) must not trap AND must be normalized before overlap
+        // classification, so a fixation inside the true window stays "during", not misbucketed.
+        let inverted = SpeechResult(text: "x", confidence: 0.5, tStart: 11.0, tEnd: 10.0)
+        let inside = fix(10.2, 10.8, at: ScreenPoint(x: 0.5, y: 0.5))
+        let u = fuser.fuse(speech: inverted, fixations: [inside], mouthSamples: [])
+        XCTAssertEqual(u.text, "x")
+        XCTAssertEqual(u.tStart, 10.0, accuracy: 1e-9)   // normalized
+        XCTAssertEqual(u.tEnd, 11.0, accuracy: 1e-9)
+        XCTAssertEqual(u.gazeTargets.first?.overlap, "during")
+        XCTAssertEqual(u.voiceActivity.jawOpenMean, 0, accuracy: 1e-9)
+    }
+
     func testRegionIDGrid() {
         XCTAssertEqual(UtteranceFuser.regionID(for: ScreenPoint(x: 0.0, y: 0.0)), "r0c0")
         XCTAssertEqual(UtteranceFuser.regionID(for: ScreenPoint(x: 0.5, y: 0.5)), "r1c1")

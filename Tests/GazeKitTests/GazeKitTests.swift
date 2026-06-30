@@ -90,6 +90,59 @@ final class ElementMapTests: XCTestCase {
         XCTAssertEqual(map.hitTest(ScreenPoint(x: 0.05, y: 0.05))?.id, "bg")
         XCTAssertNil(map.hitTest(ScreenPoint(x: 1.5, y: 1.5)))
     }
+
+    // MARK: - resolve (element id, else region-id fallback) — Phase 5
+
+    func testResolveInsideElementIsNamed() {
+        let map = ElementMap(elements: [
+            Element(id: "cta-primary", role: "button", label: "Sign up", rect: Rect(x: 0.4, y: 0.4, w: 0.2, h: 0.2)),
+        ])
+        let t = map.resolve(ScreenPoint(x: 0.5, y: 0.5))
+        XCTAssertEqual(t.id, "cta-primary")
+        XCTAssertEqual(t.role, "button")
+        XCTAssertEqual(t.label, "Sign up")
+    }
+
+    func testResolveOverlappingTopmostWins() {
+        let map = ElementMap(elements: [
+            Element(id: "panel", rect: Rect(x: 0, y: 0, w: 1, h: 1)),
+            Element(id: "ok", rect: Rect(x: 0.4, y: 0.4, w: 0.2, h: 0.2)),   // last → topmost
+        ])
+        XCTAssertEqual(map.resolve(ScreenPoint(x: 0.5, y: 0.5)).id, "ok")
+    }
+
+    func testResolveMissFallsBackToRegion() {
+        let map = ElementMap(elements: [
+            Element(id: "cta", rect: Rect(x: 0.4, y: 0.4, w: 0.2, h: 0.2)),
+        ])
+        let t = map.resolve(ScreenPoint(x: 0.05, y: 0.95))   // outside cta → bottom-left cell
+        XCTAssertEqual(t.id, "r2c0")
+        XCTAssertEqual(t.role, "region")
+        XCTAssertNil(t.label)
+    }
+
+    func testResolveEmptyMapIsAlwaysRegion() {
+        let map = ElementMap()
+        XCTAssertEqual(map.resolve(ScreenPoint(x: 0.5, y: 0.5)).id, "r1c1")
+        XCTAssertEqual(map.resolve(ScreenPoint(x: 0.0, y: 0.0)).id, "r0c0")
+        XCTAssertEqual(map.resolve(ScreenPoint(x: 0.9, y: 0.1)).id, "r0c2")
+    }
+
+    func testResolvePassesThroughMetadata() {
+        let map = ElementMap(elements: [
+            Element(id: "cta", role: "button", rect: Rect(x: 0.4, y: 0.4, w: 0.2, h: 0.2)),
+        ])
+        let t = map.resolve(ScreenPoint(x: 0.5, y: 0.5), dwellMs: 420, overlap: "during", confidence: 0.7)
+        XCTAssertEqual(t.dwellMs, 420)
+        XCTAssertEqual(t.overlap, "during")
+        XCTAssertEqual(t.confidence, 0.7)
+    }
+
+    func testResolveHandlesNonFiniteCoordinate() {
+        // A degenerate gaze point (e.g. a filter blow-up) must not trap the region fallback.
+        XCTAssertEqual(ElementMap().resolve(ScreenPoint(x: .nan, y: .nan)).id, "r0c0")
+        XCTAssertEqual(ElementMap().resolve(ScreenPoint(x: .infinity, y: 0.5)).id, "r1c0")
+    }
 }
 
 final class EventsTests: XCTestCase {

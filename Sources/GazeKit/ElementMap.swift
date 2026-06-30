@@ -65,4 +65,26 @@ public struct ElementMap: Sendable, Equatable, Codable {
             confidence: confidence
         )
     }
+
+    /// Resolve a gaze point to a ``GazeTarget`` on this surface: the containing element's
+    /// `id`/`role`/`label` when one is hit (topmost-match-wins via ``hitTest(_:)``), else a
+    /// geometric region-id fallback so a candidate target is never dropped. This is the single
+    /// resolution path shared by ``UtteranceFuser`` and ``FixationEvent``.
+    public func resolve(
+        _ p: ScreenPoint,
+        dwellMs: Double? = nil,
+        overlap: String? = nil,
+        confidence: Double? = nil
+    ) -> GazeTarget {
+        if let element = hitTest(p) {
+            return target(for: element, dwellMs: dwellMs, overlap: overlap, confidence: confidence)
+        }
+        return GazeTarget(
+            id: UtteranceFuser.regionID(for: p),
+            role: "region",
+            dwellMs: dwellMs,
+            overlap: overlap,
+            confidence: confidence
+        )
+    }
 }
