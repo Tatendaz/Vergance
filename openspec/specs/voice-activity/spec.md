@@ -1,7 +1,7 @@
 # voice-activity Specification
 
 ## Purpose
-TBD - created by archiving change phase-4-voice-fusion. Update Purpose after archive.
+Mouth-aspect-ratio voice-activity derived from lip landmarks, reduced to `VoiceActivity` (jaw-open mean + peak) over a window — voice-activity and emphasis timing, never word content.
 ## Requirements
 ### Requirement: Mouth-aspect-ratio computation
 The system SHALL compute a mouth-aspect-ratio (MAR) from lip landmark points as a normalized

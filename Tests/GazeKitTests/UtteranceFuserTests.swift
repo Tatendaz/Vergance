@@ -125,11 +125,16 @@ final class UtteranceFuserTests: XCTestCase {
         XCTAssertEqual(explicit.gazeTargets, implicit.gazeTargets)
     }
 
-    func testInvertedSpeechWindowDoesNotTrap() {
-        // A malformed window (tStart > tEnd) must not trap when building the voice-activity range.
+    func testInvertedSpeechWindowIsNormalized() {
+        // A malformed window (tStart > tEnd) must not trap AND must be normalized before overlap
+        // classification, so a fixation inside the true window stays "during", not misbucketed.
         let inverted = SpeechResult(text: "x", confidence: 0.5, tStart: 11.0, tEnd: 10.0)
-        let u = fuser.fuse(speech: inverted, fixations: [], mouthSamples: [])
+        let inside = fix(10.2, 10.8, at: ScreenPoint(x: 0.5, y: 0.5))
+        let u = fuser.fuse(speech: inverted, fixations: [inside], mouthSamples: [])
         XCTAssertEqual(u.text, "x")
+        XCTAssertEqual(u.tStart, 10.0, accuracy: 1e-9)   // normalized
+        XCTAssertEqual(u.tEnd, 11.0, accuracy: 1e-9)
+        XCTAssertEqual(u.gazeTargets.first?.overlap, "during")
         XCTAssertEqual(u.voiceActivity.jawOpenMean, 0, accuracy: 1e-9)
     }
 

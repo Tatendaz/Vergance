@@ -1,7 +1,7 @@
 # utterance-fusion Specification
 
 ## Purpose
-TBD - created by archiving change phase-4-voice-fusion. Update Purpose after archive.
+Fuse a speech window with the fixation stream and voice-activity into a ranked `Utterance` event — overlap-classified gaze targets with a `primaryTarget` best-guess — so a consumer can disambiguate when the top candidates are close.
 ## Requirements
 ### Requirement: Fuse speech window with gaze into an Utterance
 The system SHALL produce a single `Utterance` from a recognized speech result, its capture

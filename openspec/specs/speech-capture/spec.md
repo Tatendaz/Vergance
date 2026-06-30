@@ -1,7 +1,7 @@
 # speech-capture Specification
 
 ## Purpose
-TBD - created by archiving change phase-4-voice-fusion. Update Purpose after archive.
+Push-to-talk speech recognition that yields recognized text, a confidence, and a precise capture window, using on-device recognition for privacy.
 ## Requirements
 ### Requirement: Push-to-talk capture window
 The system SHALL recognize speech only while a push-to-talk control is held, and SHALL expose

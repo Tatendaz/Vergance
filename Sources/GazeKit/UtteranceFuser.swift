@@ -83,11 +83,15 @@ public struct UtteranceFuser: Sendable {
         mouthSamples: [MouthSample],
         elements: ElementMap = ElementMap()
     ) -> Utterance {
+        // Normalize the window once: a malformed [tStart > tEnd] must not misbucket overlap
+        // classification or trap the voice-activity range.
+        let windowStart = min(speech.tStart, speech.tEnd)
+        let windowEnd = max(speech.tStart, speech.tEnd)
         struct Aggregate { var role: String?; var label: String?; var overlap: Overlap; var dwellMs: Double }
         var byID: [String: Aggregate] = [:]
         var order: [String] = []   // first-seen order, for a deterministic tiebreak
         for fix in fixations {
-            guard let ov = overlap(of: fix, windowStart: speech.tStart, windowEnd: speech.tEnd) else { continue }
+            guard let ov = overlap(of: fix, windowStart: windowStart, windowEnd: windowEnd) else { continue }
             let resolved = elements.resolve(fix.centroid)   // named element id, else region-id fallback
             let id = resolved.id
             if var agg = byID[id] {
@@ -130,16 +134,13 @@ public struct UtteranceFuser: Sendable {
         }()
 
         return Utterance(
-            tStart: speech.tStart,
-            tEnd: speech.tEnd,
+            tStart: windowStart,
+            tEnd: windowEnd,
             text: speech.text,
             speechConfidence: speech.confidence,
             gazeTargets: gazeTargets,
             primaryTarget: primaryTarget,
-            voiceActivity: VoiceActivity(
-                from: mouthSamples,
-                in: min(speech.tStart, speech.tEnd)...max(speech.tStart, speech.tEnd)
-            )
+            voiceActivity: VoiceActivity(from: mouthSamples, in: windowStart...windowEnd)
         )
     }
 
