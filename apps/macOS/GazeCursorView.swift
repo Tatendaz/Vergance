@@ -8,6 +8,9 @@ struct GazeCursorView: View {
     @ObservedObject var calibration: CalibrationViewModel
     var onRecalibrate: () -> Void
 
+    /// Which surface gaze resolves against — Vergance's own canvas (a) or a hosted web page (b).
+    @State private var surface: RunSurface = .canvas
+
     var body: some View {
         GeometryReader { geo in
             ZStack {
@@ -17,13 +20,8 @@ struct GazeCursorView: View {
                     CameraIssueView(authorization: calibration.authorization,
                                     errorMessage: calibration.errorMessage)
                 } else {
-                    // Phase 5: Vergance's own canvas — named elements the gaze resolves against.
-                    ForEach(DemoCanvas.elements, id: \.id) { el in
-                        ElementTile(element: el, highlighted: highlightedID == el.id)
-                            .frame(width: el.rect.w * geo.size.width, height: el.rect.h * geo.size.height)
-                            .position(x: (el.rect.x + el.rect.w / 2) * geo.size.width,
-                                      y: (el.rect.y + el.rect.h / 2) * geo.size.height)
-                    }
+                    // Phase 5: the active surface — Vergance's own canvas (a) or a hosted page (b).
+                    surfaceContent(geo)
 
                     // Recent fixations — translucent discs sized by dwell time.
                     ForEach(calibration.fixationEvents.suffix(15), id: \.tStart) { event in
@@ -46,6 +44,7 @@ struct GazeCursorView: View {
                         HStack(alignment: .top) {
                             readout
                             Spacer()
+                            surfacePicker
                             Button("Recalibrate", action: onRecalibrate)
                                 .controlSize(.large)
                         }
@@ -63,7 +62,47 @@ struct GazeCursorView: View {
                     .padding(16)
                 }
             }
-            .onAppear { calibration.registerElements(DemoCanvas.elements) }
+            .onAppear { registerElements(for: surface) }
+            .onChange(of: surface) { _, newSurface in registerElements(for: newSurface) }
+        }
+    }
+
+    /// The resolution surface behind the overlays: named tiles on the own canvas, or a hosted
+    /// `WKWebView` whose extracted DOM populates the same `ElementMap`.
+    @ViewBuilder
+    private func surfaceContent(_ geo: GeometryProxy) -> some View {
+        switch surface {
+        case .canvas:
+            ForEach(DemoCanvas.elements, id: \.id) { el in
+                ElementTile(element: el, highlighted: highlightedID == el.id)
+                    .frame(width: el.rect.w * geo.size.width, height: el.rect.h * geo.size.height)
+                    .position(x: (el.rect.x + el.rect.w / 2) * geo.size.width,
+                              y: (el.rect.y + el.rect.h / 2) * geo.size.height)
+            }
+        case .browser:
+            BrowserSurface { calibration.registerElements($0) }
+                .frame(width: geo.size.width, height: geo.size.height)
+        }
+    }
+
+    private var surfacePicker: some View {
+        Picker("Surface", selection: $surface) {
+            ForEach(RunSurface.allCases, id: \.self) { s in
+                Text(s.rawValue).tag(s)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
+    }
+
+    /// Register the surface's elements into the view model. The browser surface starts empty and is
+    /// populated by ``BrowserSurface`` once its first DOM extraction lands (resolution falls back to
+    /// region ids meanwhile), so switching to it clears the canvas map.
+    private func registerElements(for surface: RunSurface) {
+        switch surface {
+        case .canvas: calibration.registerElements(DemoCanvas.elements)
+        case .browser: calibration.registerElements([])
         }
     }
 
@@ -249,6 +288,9 @@ private struct ElementTile: View {
             .allowsHitTesting(false)
     }
 }
+
+/// The Run-mode resolution surface: Vergance's own canvas (a) or a hosted browser page (b).
+enum RunSurface: String, CaseIterable { case canvas = "Canvas", browser = "Browser" }
 
 /// Vergance's own canvas — staged surface (a). A few named, look-at-able elements the gaze resolves
 /// against, in normalized [0, 1] screen space (origin top-left), the same space as the gaze cursor.

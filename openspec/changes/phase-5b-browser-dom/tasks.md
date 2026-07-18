@@ -6,12 +6,12 @@
 
 ## 2. macOS app — WKWebView browser surface + DOM extraction (needs Xcode/GUI; CHECKPOINT before starting)
 
-- [ ] 2.1 Add a `WKWebView` browser surface to the Run screen, loading a bundled local demo page with known ids (links / buttons / headings) for deterministic validation.
-- [ ] 2.2 Inject a JS extraction script that collects hit-test-worthy elements (DOM id or a generated CSS selector, role / `aria-label` / text, `getBoundingClientRect` + viewport size), skipping hidden / zero-area / off-viewport nodes, and posts them to Swift via a `WKScriptMessageHandler`.
-- [ ] 2.3 In Swift, map each extracted DOM rect to a normalized surface `Rect` via the GazeKit helper (using the web view's normalized frame within the Run surface), assemble an `ElementMap`, and register it into `CalibrationViewModel`.
-- [ ] 2.4 Re-extract (debounced) on scroll, resize, and navigation (`didFinish`) so the map tracks the live page.
-- [ ] 2.5 Run-screen integration: overlay the gaze cursor + fixation markers + resolved-target readout over the web view (reuse the 5a overlays), with a simple toggle between the own-canvas and browser surfaces.
-- [ ] 2.6 Build (`xcodebuild`) and validate on-device: look at a page link/button while speaking → the utterance's `primaryTarget`/`gazeTargets` carry that element's id.
+- [x] 2.1 Add a `WKWebView` browser surface to the Run screen, loading a bundled local demo page with known ids (links / buttons / headings) for deterministic validation. — `BrowserSurface.swift`; page compiled in and loaded via `loadHTMLString` (no resource-bundling dependency).
+- [x] 2.2 Inject a JS extraction script that collects hit-test-worthy elements (DOM id or a generated CSS selector, role / `aria-label` / text, `getBoundingClientRect` + viewport size), skipping hidden / zero-area / off-viewport nodes, and posts them to Swift via a `WKScriptMessageHandler`.
+- [x] 2.3 In Swift, map each extracted DOM rect to a normalized surface `Rect` via the GazeKit helper (using the web view's normalized frame within the Run surface), assemble an `ElementMap`, and register it into `CalibrationViewModel`. — `Coordinator.map` uses `Rect.place`; web view fills the surface, so the frame is the full `[0,1]`.
+- [x] 2.4 Re-extract (debounced) on scroll, resize, and navigation (`didFinish`) so the map tracks the live page. — JS `scroll`/`resize`/`load` listeners debounced ~120ms; navigation covered by re-injecting the `WKUserScript` at document end on every load.
+- [x] 2.5 Run-screen integration: overlay the gaze cursor + fixation markers + resolved-target readout over the web view (reuse the 5a overlays), with a simple toggle between the own-canvas and browser surfaces. — segmented Canvas/Browser picker in `GazeCursorView`.
+- [ ] 2.6 Build (`xcodebuild`) and validate on-device: look at a page link/button while speaking → the utterance's `primaryTarget`/`gazeTargets` carry that element's id. — **compiles clean (`BUILD SUCCEEDED`); on-device validation pending (needs camera/mic/GUI).**
 
 ## 3. Docs, spec sync & gate
 
