@@ -15,7 +15,7 @@
 
 ## 3. Docs, spec sync & gate
 
-- [ ] 3.1 Add a `docs/features/` entry for Phase 5 surface (b) browser-DOM resolution.
-- [ ] 3.2 Add the session/summary entry for this session.
-- [ ] 3.3 Update the ROADMAP Phase 5 row: surfaces (a) + (b) done, (c) Accessibility API still pending.
-- [ ] 3.4 `openspec validate phase-5b-browser-dom --strict` passes.
+- [x] 3.1 Add a `docs/features/` entry for Phase 5 surface (b) browser-DOM resolution. — `docs/features/2026-07-18-phase-5b-browser-dom.md`
+- [x] 3.2 Add the session/summary entry for this session. — `docs/summaries/2026-07-18-phase-5b-browser-dom.md` (local-only; the directory is gitignored by design)
+- [x] 3.3 Update the ROADMAP Phase 5 row: surfaces (a) + (b) done, (c) Accessibility API still pending. — (b) marked **built**, on-device validation (2.6) explicitly still pending
+- [x] 3.4 `openspec validate phase-5b-browser-dom --strict` passes.
