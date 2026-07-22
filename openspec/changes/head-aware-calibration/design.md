@@ -79,15 +79,28 @@ learner can use slightly laxer bounds. Slow natural head drift — the common ca
 today trips the alarm — survives dispersion checks and is precisely the data we learn
 from; fast head turns break windows, contribute nothing, and fall to the alarm.
 
-Learning is gated off when: the residual alarm is active (out of trusted envelope), the
-sample is low-confidence, or the window is too short.
+Learning is gated by **data quality, not the user-facing alarm**: a sample contributes
+only if its pose delta lies inside the hard learning domain (the same ~2× limit that
+bounds where the linear model is trusted), its confidence clears the threshold, and its
+window meets the duration bound. The residual alarm deliberately does **not** gate
+learning — if it did, an alarmed state could never collect the evidence needed to clear
+itself (alarm → learning frozen → residual never improves → permanent alarm). Decoupling
+them is the bootstrap path: drift past the legacy threshold shows the alarm exactly as
+today, but stable windows formed there still teach `J`; as residual drops, trust rises,
+the effective envelope widens past the current delta, and the alarm clears itself —
+recovery without a recalibration.
 
 ### 3. Pipeline order: map → compensate → smooth → fixate
 
-Correction applies to the raw mapped point, before the One Euro filter, so smoothing
-doesn't lag corrections and the fixation detector consumes the same final signal as
-today. Corrections evolve continuously (linear in a smoothly-changing `d`), so they don't
-present saccade-like steps to the filter.
+Correction applies to the raw mapped point, before the One Euro filter; the fixation
+detector consumes the same final signal as today. To be precise about latency: placing
+the correction upstream means correction changes are smoothed exactly like gaze motion —
+they are *not* latency-free, and that is the intended trade-off. `J·d` varies at
+head-motion speed, well inside One Euro's low-lag band (its cutoff rises with signal
+speed), while pre-filter placement avoids the visible steps a post-filter additive term
+could produce. Corrections evolve continuously (linear in a smoothly-changing `d`), so
+they don't present saccade-like steps to the filter; correction continuity under
+smoothly-varying head deltas is part of the unit-test contract.
 
 ### 4. Alarm becomes residual, with a trust-gated envelope
 
@@ -101,9 +114,14 @@ present saccade-like steps to the filter.
 The effective envelope is **trust-gated** so an unlearned compensator never loosens the
 alarm: it starts at the legacy threshold (0.12 rad) and widens toward the hard limit
 (~2×) only in proportion to a trust score in [0, 1] derived from recent within-window
-residual reduction. With `J = 0` (fresh start, or after reset) trust is 0, the envelope
-equals the legacy threshold, and alarm behavior is exactly today's — which is what makes
-the bit-identical-until-learned claim true for the alarm as well as the cursor.
+residual reduction. At zero trust (`J = 0` — fresh start or after reset) the alarm
+predicate is **exactly the legacy one and nothing more**:
+`angularDistance(pose, baseline) > 0.12` or a valid span ratio beyond ±10 %. The
+residual- and saturation-based terms activate only once learning has begun (`J ≠ 0`), so
+the zero-trust branch is checkable as bit-identical to today's `headDrifted` — for the
+alarm as well as the cursor. And an active alarm is recoverable by design: learning is
+gated by the hard domain, not the alarm (§2), so trust earned during an alarmed-but-
+stable dwell widens the envelope and clears the flag without recalibration.
 
 Downstream (dim cursor, 0.5 fixation confidence, recalibrate prompt) binds to the flag
 unchanged.
