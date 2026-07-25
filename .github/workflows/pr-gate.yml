@@ -1,13 +1,18 @@
 name: PR Gate
 
-# Server-side mirror of the local pre-push gate (tatendaz-github skill).
-# Complements ci.yml: it re-runs the GazeKit build + test so the gate is
-# self-contained, then enforces the repo's docs convention — every PR must
-# add or update a docs/features/*.md entry.
+# Server-side mirror of the local pre-push gate: every PR must add or update a
+# docs/features/*.md entry.
 #
-# NOTE: docs/summaries/ is intentionally NOT required here. Session prompt-logs
-# under docs/summaries/ are kept local and .gitignored for privacy, so the gate
-# only checks docs/features/.
+# This used to ALSO re-run `swift build` + `swift test` on macos-15 so the gate
+# was "self-contained" — which meant every PR to main ran the identical macOS
+# build+test twice (once here, once in ci.yml). That duplication is gone; the
+# build and test now live only in ci.yml. What is left is a `git diff | grep`,
+# which has no business touching Apple hardware, so it runs on Linux.
+#
+# docs/summaries/ is intentionally NOT required. Session prompt-logs under
+# docs/summaries/ are .gitignored and kept local for privacy, so the directory
+# does not exist in the repo at all — requiring it would fail every PR. Only
+# docs/features/ is checked. (See CONTRIBUTING.md.)
 
 on:
   pull_request:
@@ -18,52 +23,63 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr-gate-${{ github.ref }}
+  # Per-PR so a force-push supersedes its own run and nothing else.
+  group: pr-gate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  pr-gate:
-    name: GazeKit · build + test + docs gate
-    runs-on: macos-15
+  docs-gate:
+    name: Docs gate
+    # Pinned, not ubuntu-latest — see the comment in ci.yml. This job needs no
+    # Swift, but keeping both workflows on the same pinned image avoids a
+    # surprise if one is bumped and the other is not.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - name: Checkout (full history so the PR diff is available)
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - name: Checkout (full history for the PR diff)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
-          # Keep the read-only token (see permissions: above) so the docs-gate
-          # base-branch `git fetch` works regardless of repo visibility.
-          persist-credentials: true
+          # No credentials needed. The previous version kept the token so a
+          # `git fetch` of the base branch would work; with fetch-depth: 0 the
+          # base commit is already in the object store, so we diff against
+          # base.sha directly — no network call, nothing to authenticate.
+          persist-credentials: false
 
-      - name: Swift version
-        run: swift --version
-
-      - name: Build
-        run: swift build
-
-      - name: Test
-        run: swift test
-
-      - name: Docs gate — require a docs/features entry
-        # The PR base branch is passed via env (never interpolated directly
-        # into the shell) so the run step stays injection-safe. No untrusted
-        # event input (PR title/body/head branch) ever reaches the shell.
+      - name: Require a docs/features entry
+        # ESCAPE HATCH. Without this the gate blocks legitimate PRs outright:
+        # replayed over real history, commit 9e073a5 ("chore(openspec): archive
+        # phase-4-voice-fusion") and 8bbd8b6 ("docs: expand README") both touch
+        # zero docs/features files and would have been rejected with no way out —
+        # and an openspec archive is a REQUIRED step of this project's own
+        # workflow. Only someone with write/triage access can apply a label, so
+        # this is a maintainer decision, not a contributor self-serve bypass.
+        # CONTRIBUTING.md documents when it is appropriate.
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-docs-gate') }}
+        # Untrusted event data (PR title, body, branch name) never reaches the
+        # shell; only the base SHA is passed, via env.
         env:
-          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
 
-          # checkout fetched full history but not the base branch ref itself,
-          # so make it available as origin/$BASE_REF for the diff below.
-          git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-
-          changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+          changed="$(git diff --name-only "${BASE_SHA}...HEAD")"
           echo "Files changed in this PR:"
           printf '%s\n' "$changed"
 
+          # Real filenames verified against docs/features/: dated kebab-case,
+          # e.g. docs/features/2026-06-30-phase-5-element-resolution.md
           if printf '%s\n' "$changed" | grep -Eq '^docs/features/.+\.md$'; then
             echo "Docs gate passed: this PR touches a docs/features/*.md entry."
           else
-            echo "::error::Docs gate failed — this PR must add or update a docs/features/<name>.md entry."
-            echo "Reminder: docs/summaries/ is gitignored (local-only for privacy), so only docs/features/ is required."
+            echo "::error::Docs gate failed — add or update docs/features/<YYYY-MM-DD>-<slug>.md."
+            echo "See CONTRIBUTING.md for what goes in that file."
+            echo "docs/summaries/ is .gitignored (local-only, privacy), so only docs/features/ is required."
+            echo "If this PR genuinely has no feature to document (a chore, or an openspec archive),"
+            echo "ask a maintainer to apply the 'skip-docs-gate' label."
             exit 1
           fi
