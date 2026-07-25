@@ -14,9 +14,16 @@ form (Security → Advisories on this repository). That creates a private adviso
 visible only to you as the reporter and to this repository's authorized
 security personnel (administrators and anyone with the security-manager role).
 
-If private advisories are unavailable to you for any reason, open a public issue
-that says only *"security report, please open a private channel"* — with **no
-details** — and you will be contacted.
+If private advisories are unavailable to you for any reason, do **not** put the
+details anywhere public. Open an issue containing only the words *"security
+report, please open a private channel"* — no description, no reproduction, no
+affected version — or contact the maintainer through the address on the
+[@Tatendaz GitHub profile](https://github.com/Tatendaz). A private advisory or
+another private channel will be opened for you, and the details go there.
+
+If you are the maintainer reading this: a dedicated, monitored security address
+published here would be better than the profile-contact round trip. Add one and
+replace this paragraph.
 
 **What to include:** what you found, how to reproduce it, what an attacker gains,
 and the version or commit you tested. A proof of concept helps enormously.

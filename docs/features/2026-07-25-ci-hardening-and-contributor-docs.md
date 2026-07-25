@@ -22,9 +22,13 @@ been rejected outright.
 - **`.github/workflows/ci.yml`** — rewritten as two jobs:
   - `GazeKit · Linux compile + platform guard` on `ubuntu-24.04`: an explicit grep guard for
     Apple-only imports in `Sources/GazeKit` and `Tests/GazeKitTests`, then
-    `swift build --build-tests`. Compiling the core on Linux is what *mechanically* enforces the
-    "core imports only Foundation" rule that previously depended on a human ticking
-    `openspec/.../tasks.md` item 1.6.
+    `swift build --build-tests`. Together these *mechanically* catch the failure the
+    "core imports only Foundation" rule exists to prevent — an Apple-only import landing in
+    the core — and keep it Linux-buildable, where previously that depended on a human ticking
+    `openspec/.../tasks.md` item 1.6. Note the narrower guarantee: the grep matches a named
+    list of Apple frameworks and the compile proves the core builds on Linux, so neither
+    enforces a literal Foundation-only allowlist. A non-Apple, non-Foundation dependency
+    would still pass; catching that stays a review-time judgement.
   - `GazeKit · macOS tests + app builds` on `macos-15`: the authoritative `swift test`, then
     `xcodegen generate` and an **unsigned** `xcodebuild` of **both** `Vergance` (macOS) and
     `VerganceCompanion` (iOS Simulator). `CODE_SIGNING_ALLOWED=NO` is what keeps fork PRs
