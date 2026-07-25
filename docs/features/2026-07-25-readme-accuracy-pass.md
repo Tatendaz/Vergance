@@ -65,7 +65,9 @@ ROADMAP the source of truth.
   SwiftUI button (`apps/macOS/GazeCursorView.swift:102-121`), and there is no
   `keyboardShortcut` bound to it.
 - The Platforms badge pointed at `#tech-stack`; it now points at `#prerequisites`. Whole-tree
-  grep for inbound `README.md#` links returns zero, so no external anchor broke.
+  grep for inbound `README.md#` links returns zero, so nothing *in this repository* pointed at
+  the old anchor. That is the whole of what the grep establishes — a bookmark or an off-repo
+  page linking `#tech-stack` would still break, and this change accepts that.
 - Preserved verbatim (diff-verified against `origin/main`): `### Honest accuracy bar`,
   `### Non-goals (v1)`, the `cta-primary` example event, the bolded privacy line, and all
   four badge images.
