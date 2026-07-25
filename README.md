@@ -58,12 +58,13 @@ Two product surfaces fall out of the same capture layer:
   held during the hold, into an `utterance` carrying a ranked `primaryTarget`.
 - **Element resolution** — a fixation resolves to a *named* element (`cta-primary`, …) on
   Vergance's own canvas. Browser-DOM and Accessibility-API surfaces are staged after it.
-- **Claude-facing event schema** — debounced, element-resolved `Codable` events
+- **Portable event schema** — debounced, element-resolved `Codable` events
   (`session_start`, `fixation`, `utterance`, `session_summary`) rather than raw 60 Hz samples.
+  These are the types the Phase 6 hand-off to a coding agent will carry; today they stay in-process.
 - **Drift handling** — a large head-pose delta from calibration prompts a recalibration.
 
 *No screenshots yet — for a tool about looking at things, that's a real gap; capturing the live
-overlay and calibration UI sits on the Phase 9 docs pass.*
+overlay and calibration UI is part of Phase 9 (Polish), which covers docs.*
 
 ## Architecture
 
