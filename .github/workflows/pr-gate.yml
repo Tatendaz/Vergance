@@ -17,6 +17,11 @@ name: PR Gate
 on:
   pull_request:
     branches: [main]
+    # `labeled`/`unlabeled` are NOT in the default set (opened, synchronize,
+    # reopened). Without them the `skip-docs-gate` bypass below is inert:
+    # applying the label would never start a run, and re-running the old one
+    # replays the original payload, which has no label on it.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # Least-privilege token: this gate only ever reads the repo.
 permissions:
@@ -73,7 +78,7 @@ jobs:
 
           # Real filenames verified against docs/features/: dated kebab-case,
           # e.g. docs/features/2026-06-30-phase-5-element-resolution.md
-          if printf '%s\n' "$changed" | grep -Eq '^docs/features/.+\.md$'; then
+          if printf '%s\n' "$changed" | grep -Eq '^docs/features/[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9]+(-[a-z0-9]+)*\.md$'; then
             echo "Docs gate passed: this PR touches a docs/features/*.md entry."
           else
             echo "::error::Docs gate failed — add or update docs/features/<YYYY-MM-DD>-<slug>.md."

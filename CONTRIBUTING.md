@@ -64,7 +64,7 @@ xcodebuild build -project Vergance.xcodeproj -scheme VerganceCompanion \
 Use `<type>/<slug>`, where type is one of `feat` / `fix` / `docs` / `chore` /
 `refactor`:
 
-```
+```text
 feat/phase-6-claude-skill
 fix/calibration-drift-threshold
 docs/expand-readme
@@ -87,7 +87,7 @@ hard CI gate (`PR Gate / Docs gate`) and it is the single most common reason a
 first-time PR goes red. Worked example, for a branch named
 `feat/add-blink-detection`:
 
-```
+```text
 docs/features/2026-07-25-add-blink-detection.md
 ```
 
@@ -246,7 +246,7 @@ Every PR runs three required checks. The names, verbatim:
 | `CI / GazeKit · macOS tests + app builds` | `macos-15` | `swift build` + `swift test`, then `xcodegen generate` and an unsigned `xcodebuild` of **both** app targets. |
 | `PR Gate / Docs gate` | `ubuntu-24.04` | Requires a `docs/features/*.md` change, unless a maintainer applied `skip-docs-gate`. |
 
-> `main` is protected. Pull requests are the only way in. Every PR needs:
+> **Merging to `main` requires all of:**
 >
 > - all required checks green,
 > - all review conversations resolved,
@@ -254,6 +254,11 @@ Every PR runs three required checks. The names, verbatim:
 >
 > You cannot approve your own pull request — GitHub does not allow it — so every
 > contribution gets a second pair of eyes before it lands.
+>
+> These are enforced by the `protect-main` branch ruleset, which is applied when
+> the change that introduced this file lands. If you are reading this on that PR
+> itself, treat the list as the agreed policy rather than something GitHub is
+> already blocking on.
 
 **Two things that look like broken CI but aren't:**
 

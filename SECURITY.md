@@ -11,7 +11,8 @@ needs a disclosure channel. This is it.
 Report it privately through GitHub's
 [**Report a vulnerability**](https://github.com/Tatendaz/Vergance/security/advisories/new)
 form (Security → Advisories on this repository). That creates a private advisory
-visible only to you and the maintainer.
+visible only to you as the reporter and to this repository's authorized
+security personnel (administrators and anyone with the security-manager role).
 
 If private advisories are unavailable to you for any reason, open a public issue
 that says only *"security report, please open a private channel"* — with **no

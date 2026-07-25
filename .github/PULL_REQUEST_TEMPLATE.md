@@ -1,7 +1,8 @@
 <!--
-Thanks for contributing! The checklist below mirrors the automated checks
-that run on this PR. Ticking these off before you push is the fastest way
-to a green build — CI enforces every one of them.
+Thanks for contributing! The checklist below records this repository's
+contribution requirements. CI enforces some of them — the builds, the tests
+and the docs/features entry. A reviewer enforces the rest, so a green build
+does not mean the checklist is satisfied.
 -->
 
 ## What this changes
