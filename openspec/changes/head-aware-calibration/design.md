@@ -144,13 +144,14 @@ alarm. Its contract, anchored to the `headDrifted` decision:
   (unlearned); sustained `r_post ≪ r_raw` drives trust monotonically toward 1 (fully
   trusted). Trust recomputes only when a window is accepted and holds between windows.
 - **The predicate.** `headDrifted` is true iff `θ > θ_limit(trust)`, **or** a valid
-  span ratio is beyond ±10 %, **or** — only once learning has begun (`J ≠ 0`) — the
-  correction cap is saturated or recent within-window residual stays high (the bullets
-  above).
+  span ratio is beyond ±10 %, **or** — only once trust is positive (`trust > 0`, which
+  requires `J ≠ 0` **and** ≥ 2 accepted windows) — the correction cap is saturated or
+  recent within-window residual stays high (the bullets above).
 
 At zero trust the alarm predicate is therefore **exactly the legacy one and nothing
 more** — `angularDistance(pose, baseline) > 0.12` or a valid span ratio beyond ±10 % —
-because `θ_limit(0) = θ_legacy` and the `J ≠ 0` terms are off. The zero-trust branch is
+because `θ_limit(0) = θ_legacy` and the `trust > 0` terms are off — including the
+first-accepted-window state where `J ≠ 0` but trust is still 0. The zero-trust branch is
 checkable as bit-identical to today's `headDrifted` — for the alarm as well as the
 cursor — and each clause is unit-testable against synthetic window stats. And an active
 alarm is recoverable by design: learning is gated by the hard domain, not the alarm
@@ -198,8 +199,9 @@ No platform frameworks enter GazeKit.
   after a few good windows.
 - [Shared failure modes — the head-pose estimate and gaze features come from the same
   landmarks, so occlusion/low light can corrupt both coherently] → skip low-confidence
-  samples; freeze learning whenever the residual alarm is active; regularization keeps
-  `J` small under noisy evidence.
+  samples (the data-quality gate — learning stays alarm-independent per §2, so this
+  never recreates the alarm→frozen-learning deadlock); regularization keeps `J` small
+  under noisy evidence.
 - [Compensation masks genuine degradation so users never recalibrate] → the alarm still
   fires on saturation/high residual; calibration RMS reporting is unchanged; the
   correction cap limits how much degradation can be silently absorbed.

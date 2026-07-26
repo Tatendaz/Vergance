@@ -3,12 +3,18 @@
 ## ADDED Requirements
 
 ### Requirement: Calibration captures a head baseline
-The system SHALL record the head pose and head span of every frame captured during a
-calibration run, and on a successful model fit SHALL store the baseline as the unweighted
-per-axis mean over all valid capture samples across all targets. A sample is valid when
+The system SHALL record the head pose and head span of every frame captured within a
+target's capture window during a calibration run; frames outside capture windows
+(target transitions, saccades) SHALL NOT be recorded as capture samples. On a
+successful model fit the system SHALL store the baseline as the unweighted per-axis
+mean over all valid capture-window samples pooled across all targets, each sample
+weighted equally regardless of per-target sample counts. A sample is valid when
 every pose component and the span are finite and the span is positive; invalid samples
 SHALL be excluded from the baseline. If no valid span samples exist, the span baseline
-SHALL be absent and span-based alarming disabled. A failed fit SHALL leave any
+SHALL be absent; with an absent span baseline the runtime SHALL disable span-based
+alarming, SHALL treat the span component of the head delta as zero (no span
+correction and no span learning), and SHALL NOT evaluate any ratio against the
+absent baseline. A failed fit SHALL leave any
 previously stored baseline and model untouched.
 
 #### Scenario: Baseline set on successful fit
