@@ -11,7 +11,10 @@
 <meta property="og:title" content="Vergance — look at it, say what you want">
 <meta property="og:description" content="Gaze + voice as a multimodal input layer. Gaze supplies the deixis (&quot;make this bigger&quot;) that voice alone can't. On-device — only semantic events leave the machine.">
 <meta property="og:url" content="https://tatendaz.github.io/Vergance/">
-<meta name="twitter:card" content="summary_large_image">
+<!-- summary, not summary_large_image: this repo has no social-preview.png yet, and a
+     large-image card with no og:image/twitter:image just falls back to a plain card.
+     Switch to summary_large_image when an image ships. -->
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Vergance — look at it, say what you want">
 <meta name="twitter:description" content="Gaze + voice as a multimodal input layer for coding agents. On-device, sensor-agnostic, Apache 2.0. Pre-alpha.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%91%81%EF%B8%8F%3C/text%3E%3C/svg%3E">
@@ -25,7 +28,8 @@
   "softwareVersion": "pre-alpha",
   "description": "A desktop tool that uses gaze and voice as a multimodal input layer for coding agents. The camera watches your eyes and mouth; you look at a UI element, say a command, and Vergance emits a semantic event resolved to what you were looking at. Raw camera frames never leave the device — only the events do.",
   "url": "https://tatendaz.github.io/Vergance/",
-  "downloadUrl": "https://github.com/Tatendaz/Vergance",
+  "downloadUrl": "https://github.com/Tatendaz/Vergance/releases/latest",
+  "sameAs": "https://github.com/Tatendaz/Vergance",
   "license": "https://github.com/Tatendaz/Vergance/blob/main/LICENSE",
   "programmingLanguage": "Swift",
   "isAccessibleForFree": true,

@@ -37,5 +37,9 @@ field pointed at the portfolio root, which made it *look* like a site existed wh
   GitHub Pages project URLs are case-sensitive.
 - **No `og:image`.** The repo has no `social-preview.png`; link previews fall back to title
   and description until one exists. `ROADMAP.md` notes the README has no images either —
-  worth a combined pass.
+  worth a combined pass. For the same reason `twitter:card` is `summary` rather than
+  `summary_large_image`, which without an image just degrades to a plain card.
+- **`downloadUrl` points at `/releases/latest`, not the repo root.** The repo root is a
+  landing page, not a download destination; `v0.1.0` exists and its source tarball is the
+  actual artifact. The repo URL is kept as `sameAs`.
 - **Pages still needs enabling** (Settings → Pages → `main` / `/docs`) after merge.
