@@ -34,7 +34,9 @@ alarm retained for residual drift the correction cannot absorb.
   correction demonstrably holds residual error down. Downstream consumers (dimmed cursor,
   0.5 fixation confidence, recalibrate prompt) bind to the flag unchanged.
 - **Pluggable head-motion input (seam only in core)** — the compensator consumes head
-  pose/span from the `GazeSample` stream through a narrow input contract, so a
+  pose/span from the **existing** `GazeSample.headPose` / `GazeSample.headSpan` fields
+  (every runtime frame already carries them today; no new fields, no sensor-protocol or
+  event-schema change, no consumer touched) through a narrow input contract, so a
   higher-quality head-rotation source can substitute later without touching the math.
 - **Stretch (optional, off the critical path): AirPods head-motion fusion** — a
   `HeadphoneMotionSensor` in the macOS app target (`CMHeadphoneMotionManager`, ~25 Hz)

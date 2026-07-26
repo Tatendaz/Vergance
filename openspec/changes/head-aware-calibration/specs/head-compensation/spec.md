@@ -8,9 +8,12 @@ target's capture window during a calibration run; frames outside capture windows
 (target transitions, saccades) SHALL NOT be recorded as capture samples. On a
 successful model fit the system SHALL store the baseline as the unweighted per-axis
 mean over all valid capture-window samples pooled across all targets, each sample
-weighted equally regardless of per-target sample counts. A sample is valid when
-every pose component and the span are finite and the span is positive; invalid samples
-SHALL be excluded from the baseline. If no valid span samples exist, the span baseline
+weighted equally regardless of per-target sample counts. Validity is evaluated per component group: a
+sample's pose contributes to the pose baseline when every pose component is finite, and
+its span contributes to the span baseline when the span is finite and positive — so a
+capture whose spans are all invalid but whose poses are valid still yields a pose
+baseline (with the span baseline absent, per below), and the model fit itself is
+unaffected by span validity. If no valid span samples exist, the span baseline
 SHALL be absent; with an absent span baseline the runtime SHALL disable span-based
 alarming, SHALL treat the span component of the head delta as zero (no span
 correction and no span learning), and SHALL NOT evaluate any ratio against the
@@ -37,7 +40,12 @@ exactly zero, and the correction magnitude SHALL never exceed a fixed cap. The c
 SHALL be expressed in normalized screen coordinates; the cap SHALL bound the correction
 vector's Euclidean norm, and clamping SHALL preserve the correction's direction (radial
 scaling). Angular deltas are measured in radians; the span delta is the dimensionless
-ratio span/baselineSpan − 1.
+ratio span/baselineSpan − 1. If a runtime sample's head pose has any non-finite
+component, or its span is non-finite or non-positive, the system SHALL apply zero
+correction for that sample, SHALL exclude it from learning and from residual/alarm
+statistics, and SHALL NOT propagate non-finite values into the gaze point or the alarm
+predicate; valid samples keep the correction, normalization, cap, and radial-clamping
+behavior above.
 
 #### Scenario: Zero-knowledge output is unchanged
 - **WHEN** a run starts with a freshly fit model and no learning has occurred
@@ -112,12 +120,15 @@ fixation confidence 0.5, recalibration prompt).
 - **THEN** the drifted flag is true
 
 ### Requirement: Recalibration resets the correction
-A successful recalibration SHALL reset the learned correction to zero and replace the
-head baseline with the new capture's baseline.
+A successful recalibration SHALL reset the learned correction to zero, reset trust to
+zero, clear the accepted residual-window history and any in-progress stability-window
+state, and replace the head baseline with the new capture's baseline. No evidence
+gathered against the previous baseline SHALL restore trust or widen the alarm envelope
+after recalibration.
 
 #### Scenario: Fresh fit, fresh correction
 - **WHEN** a recalibration completes successfully after a period of learning
-- **THEN** the correction is zero and the baseline reflects the new capture
+- **THEN** the correction is zero, trust is zero with an empty window history, and the baseline reflects the new capture
 
 ### Requirement: Source-agnostic head-pose input
 The compensator SHALL consume head pose and head span as plain values carried by the

@@ -59,9 +59,13 @@ baseline span, the span column of `d` is zero and span-based alarming is disable
 ### 2. Learning signal: stable-gaze windows, compensator-internal
 
 During a window where the (corrected) gaze point is dispersion-stable for ≥ 150 ms, the
-eye is presumed parked on one target. Let `e = mapped − anchor` be a sample's mapped-point
-deviation from the window anchor and `Δd = d − d_anchor` its head delta relative to the
-anchor's. If the corrected point is to stay put while the head moves, then from
+eye is presumed parked on one target. Let `e = mappedᵢ − mapped_anchor` be a sample's
+**raw** mapped-point deviation from the raw mapped point at the window's anchor sample
+(both terms pre-correction, so `e` isolates head-induced drift from the correction
+itself) and `Δd = dᵢ − d_anchor` its head delta relative to the anchor's. The window
+residuals that feed trust (§4) live in this same anchor-relative frame: `r_raw` is the
+RMS of `e` over the window, `r_post` the RMS of the corrected anchor-relative deviation
+`e + J·Δd`. If the corrected point is to stay put while the head moves, then from
 `corrected = mapped + J · d` we need `J · Δd ≈ −e` — the regression target is the
 **negative** deviation, so a learned `J` cancels head-induced motion rather than
 reinforcing it. Per-sample normalized-gradient update with forgetting:
@@ -125,10 +129,17 @@ alarm. Its contract, anchored to the `headDrifted` decision:
   θ_limit(trust) = θ_legacy · (1 + (K_env − 1) · trust)    θ_legacy = 0.12 rad, K_env = 2.0
   ```
 
-  so `θ_limit(0) = 0.12` and `θ_limit(1) = 0.24` — the hard learning-domain bound of §2.
-  `K_env` is tunable (§ Open questions) but may never exceed the learning-domain
-  multiple: the alarm must not stay quiet where `J` itself isn't trusted. `θ_limit` is
-  clamped to `[θ_legacy, K_env · θ_legacy]` regardless of the trust input.
+  so `θ_limit(0) = 0.12` and `θ_limit(1) = 0.24`. Define the **hard learning domain**
+  (§2's "~2× limit") in the same metric and more: a sample is in-domain iff
+  `θ ≤ K_env · θ_legacy` **and** every per-axis delta is within its per-axis cap **and**
+  its span ratio is valid — so the domain is never wider than the envelope's ceiling in
+  θ, and trust-based widening can never keep the alarm quiet at poses the per-axis
+  linear model wouldn't even learn from (out-of-domain samples are excluded by the
+  quality gate, and `θ > K_env · θ_legacy` always alarms because
+  `θ_limit ≤ K_env · θ_legacy`). `K_env` is tunable (§ Open questions) but may never
+  exceed the learning-domain multiple: the alarm must not stay quiet where `J` itself
+  isn't trusted. `θ_limit` is clamped to `[θ_legacy, K_env · θ_legacy]` regardless of
+  the trust input.
 - **Trust normalization.** Trust is a pure function of the last `W = 5` accepted
   stability windows (tunable). Each accepted window `i` already yields an uncorrected
   residual `r_raw,i` (error the raw mapping made over the window) and a post-correction
@@ -139,21 +150,29 @@ alarm. Its contract, anchored to the `headDrifted` decision:
   trust = clamp₀₁( median over last W windows of (1 − r̂ᵢ) )
   ```
 
+  A window enters the trust history only with meaningful excitation: `r_raw,i ≥ r_min`
+  (a tunable floor, § Open questions) — a window whose raw mapping was already accurate
+  proves nothing about `J` and must not inflate trust (with `r_raw,i` near zero the
+  ratio degenerates), so sub-floor windows neither add to nor reset the history.
   Boundary behavior: `J = 0` (fresh start or reset) forces `trust = 0`, and the window
-  history is cleared together with `J`; fewer than 2 accepted windows → `trust = 0`
-  (unlearned); sustained `r_post ≪ r_raw` drives trust monotonically toward 1 (fully
-  trusted). Trust recomputes only when a window is accepted and holds between windows.
+  history is cleared together with `J`; fewer than 2 accepted-with-excitation windows →
+  `trust = 0` (unlearned); sustained `r_post ≪ r_raw` drives trust monotonically toward
+  1 (fully trusted). Trust recomputes only when a qualifying window is accepted and
+  holds between windows.
 - **The predicate.** `headDrifted` is true iff `θ > θ_limit(trust)`, **or** a valid
   span ratio is beyond ±10 %, **or** — only once trust is positive (`trust > 0`, which
   requires `J ≠ 0` **and** ≥ 2 accepted windows) — the correction cap is saturated or
   recent within-window residual stays high (the bullets above).
 
-At zero trust the alarm predicate is therefore **exactly the legacy one and nothing
-more** — `angularDistance(pose, baseline) > 0.12` or a valid span ratio beyond ±10 % —
+At zero trust the **alarm predicate** is therefore exactly the legacy one and nothing
+more — `angularDistance(pose, baseline) > 0.12` or a valid span ratio beyond ±10 % —
 because `θ_limit(0) = θ_legacy` and the `trust > 0` terms are off — including the
-first-accepted-window state where `J ≠ 0` but trust is still 0. The zero-trust branch is
-checkable as bit-identical to today's `headDrifted` — for the alarm as well as the
-cursor — and each clause is unit-testable against synthetic window stats. And an active
+first-accepted-window state where `J ≠ 0` but trust is still 0. Scope the bit-identical
+guarantees precisely: at `J = 0` both the alarm **and the cursor** are bit-identical to
+today (the correction is exactly zero); once `J ≠ 0` the capped correction is live even
+at `trust = 0` — intended, §2's bounded-damage argument covers it — so in that state
+only the **alarm** retains the legacy-identical guarantee. Each clause is unit-testable
+against synthetic window stats. And an active
 alarm is recoverable by design: learning is gated by the hard domain, not the alarm
 (§2), so trust earned during an alarmed-but-stable dwell widens the envelope and clears
 the flag without recalibration.
@@ -220,7 +239,7 @@ precedent: defaults chosen from synthetic tests, then tuned during on-device val
 
 ## Open Questions
 
-- Tuning values (correction cap, hard-envelope multiple `K_env`, forgetting factor, trust-window count `W`) — resolved during the
+- Tuning values (correction cap, per-axis domain caps, hard-envelope multiple `K_env`, forgetting factor, trust-window count `W`, excitation floor `r_min`) — resolved during the
   on-device validation task, not blocking implementation.
 - Whether span (Δspan) earns its column in `J` in practice or stays alarm-only — decided
   by the same validation; the design supports either by zeroing the column.
