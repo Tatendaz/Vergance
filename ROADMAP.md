@@ -148,7 +148,9 @@ Claude never sees raw 60 Hz samples — the app does the perception and emits de
 - `session_summary` — per-region fixation counts, total dwell, **first-fixation time**,
   and scanpath (the heatmap / UX-analysis reduction).
 
-All four are implemented as `Codable` types in `GazeKit/Events.swift`.
+All four are implemented as `Codable` types in `GazeKit/Events.swift`. The macOS app emits
+`session_start`, `fixation` and `utterance` today (in-process); `session_summary` is defined
+in the schema but never constructed — nothing emits it until the Phase 8 aggregation lands.
 
 ---
 

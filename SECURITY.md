@@ -90,8 +90,9 @@ and treat any *outbound* traffic from Vergance today as a bug worth reporting.
 - Capture is **push-to-talk**, not always-listening — the microphone runs only
   while the Talk control is held.
 - What crosses the boundary out of the capture layer are the `Codable` events in
-  `Sources/GazeKit/Events.swift` (`session_start`, `fixation`, `utterance`,
-  `session_summary`). An `utterance` **does carry recognized text** — the words
+  `Sources/GazeKit/Events.swift`: `session_start`, `fixation` and `utterance` today;
+  `session_summary` is defined in the schema but never constructed — nothing emits it
+  until the Phase 8 aggregation lands. An `utterance` **does carry recognized text** — the words
   you spoke. That is the point of the product, but it means the event stream is
   sensitive, and anything that consumes it (Phase 6's Claude Code skill) inherits
   that sensitivity.
