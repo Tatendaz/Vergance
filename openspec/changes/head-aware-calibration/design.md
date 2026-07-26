@@ -112,16 +112,50 @@ smoothly-varying head deltas is part of the unit-test contract.
   worst — keep the existing ±10 % check).
 
 The effective envelope is **trust-gated** so an unlearned compensator never loosens the
-alarm: it starts at the legacy threshold (0.12 rad) and widens toward the hard limit
-(~2×) only in proportion to a trust score in [0, 1] derived from recent within-window
-residual reduction. At zero trust (`J = 0` — fresh start or after reset) the alarm
-predicate is **exactly the legacy one and nothing more**:
-`angularDistance(pose, baseline) > 0.12` or a valid span ratio beyond ±10 %. The
-residual- and saturation-based terms activate only once learning has begun (`J ≠ 0`), so
-the zero-trust branch is checkable as bit-identical to today's `headDrifted` — for the
-alarm as well as the cursor. And an active alarm is recoverable by design: learning is
-gated by the hard domain, not the alarm (§2), so trust earned during an alarmed-but-
-stable dwell widens the envelope and clears the flag without recalibration.
+alarm. Its contract, anchored to the `headDrifted` decision:
+
+- **Metric.** The envelope gates the quaternion angular distance only — the same scalar
+  the legacy alarm uses: `θ = HeadPose.angularDistance(pose, baseline)`, in radians.
+  Per-axis pose deltas feed the correction `J·d`, never the alarm; the span ratio keeps
+  its own **fixed** ±10 % check and is never trust-widened (leaning is the case the 2-D
+  correction handles worst, §1).
+- **Interpolation.** Linear in trust between the legacy threshold and the hard limit:
+
+  ```
+  θ_limit(trust) = θ_legacy · (1 + (K_env − 1) · trust)    θ_legacy = 0.12 rad, K_env = 2.0
+  ```
+
+  so `θ_limit(0) = 0.12` and `θ_limit(1) = 0.24` — the hard learning-domain bound of §2.
+  `K_env` is tunable (§ Open questions) but may never exceed the learning-domain
+  multiple: the alarm must not stay quiet where `J` itself isn't trusted. `θ_limit` is
+  clamped to `[θ_legacy, K_env · θ_legacy]` regardless of the trust input.
+- **Trust normalization.** Trust is a pure function of the last `W = 5` accepted
+  stability windows (tunable). Each accepted window `i` already yields an uncorrected
+  residual `r_raw,i` (error the raw mapping made over the window) and a post-correction
+  residual `r_post,i`:
+
+  ```
+  r̂ᵢ    = r_post,i / max(r_raw,i, ε)
+  trust = clamp₀₁( median over last W windows of (1 − r̂ᵢ) )
+  ```
+
+  Boundary behavior: `J = 0` (fresh start or reset) forces `trust = 0`, and the window
+  history is cleared together with `J`; fewer than 2 accepted windows → `trust = 0`
+  (unlearned); sustained `r_post ≪ r_raw` drives trust monotonically toward 1 (fully
+  trusted). Trust recomputes only when a window is accepted and holds between windows.
+- **The predicate.** `headDrifted` is true iff `θ > θ_limit(trust)`, **or** a valid
+  span ratio is beyond ±10 %, **or** — only once learning has begun (`J ≠ 0`) — the
+  correction cap is saturated or recent within-window residual stays high (the bullets
+  above).
+
+At zero trust the alarm predicate is therefore **exactly the legacy one and nothing
+more** — `angularDistance(pose, baseline) > 0.12` or a valid span ratio beyond ±10 % —
+because `θ_limit(0) = θ_legacy` and the `J ≠ 0` terms are off. The zero-trust branch is
+checkable as bit-identical to today's `headDrifted` — for the alarm as well as the
+cursor — and each clause is unit-testable against synthetic window stats. And an active
+alarm is recoverable by design: learning is gated by the hard domain, not the alarm
+(§2), so trust earned during an alarmed-but-stable dwell widens the envelope and clears
+the flag without recalibration.
 
 Downstream (dim cursor, 0.5 fixation confidence, recalibrate prompt) binds to the flag
 unchanged.
@@ -184,7 +218,7 @@ precedent: defaults chosen from synthetic tests, then tuned during on-device val
 
 ## Open Questions
 
-- Tuning values (correction cap, hard envelope, forgetting factor) — resolved during the
+- Tuning values (correction cap, hard-envelope multiple `K_env`, forgetting factor, trust-window count `W`) — resolved during the
   on-device validation task, not blocking implementation.
 - Whether span (Δspan) earns its column in `J` in practice or stays alarm-only — decided
   by the same validation; the design supports either by zeroing the column.
