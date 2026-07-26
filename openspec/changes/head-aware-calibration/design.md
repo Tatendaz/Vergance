@@ -70,7 +70,7 @@ RMS of `e` over the window, `r_post` the RMS of the corrected anchor-relative de
 **negative** deviation, so a learned `J` cancels head-induced motion rather than
 reinforcing it. Per-sample normalized-gradient update with forgetting:
 
-```
+```text
 J ← (1 − λ) · J + η · ((−e) − J · Δd) · Δdᵀ / (‖Δd‖² + ε)
 ```
 
@@ -125,7 +125,7 @@ alarm. Its contract, anchored to the `headDrifted` decision:
   correction handles worst, §1).
 - **Interpolation.** Linear in trust between the legacy threshold and the hard limit:
 
-  ```
+  ```text
   θ_limit(trust) = θ_legacy · (1 + (K_env − 1) · trust)    θ_legacy = 0.12 rad, K_env = 2.0
   ```
 
@@ -145,7 +145,7 @@ alarm. Its contract, anchored to the `headDrifted` decision:
   residual `r_raw,i` (error the raw mapping made over the window) and a post-correction
   residual `r_post,i`:
 
-  ```
+  ```text
   r̂ᵢ    = r_post,i / max(r_raw,i, ε)
   trust = clamp₀₁( median over last W windows of (1 − r̂ᵢ) )
   ```
