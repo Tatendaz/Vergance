@@ -132,11 +132,18 @@ Deliverables and rationale per phase are in [`ROADMAP.md`](ROADMAP.md) §5:
 
 ## Contributing
 
-- Non-trivial changes go through the OpenSpec workflow (`openspec/`) before implementation.
-- **Every PR must add or update a `docs/features/<name>.md` entry.** The PR gate
-  (`.github/workflows/pr-gate.yml`) fails the build without one. `docs/summaries/` is
-  gitignored, local-only, and *not* required.
-- The gate also runs `swift build` and `swift test` on a macOS runner — run both first.
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR. It covers the OpenSpec
+propose → apply → sync → archive workflow and when it's required, the `docs/features/` entry
+every PR must carry, the rule that `Sources/GazeKit` may import only Foundation (CI enforces it
+by compiling the core on Linux), and the required checks. You need no Apple ID, certificate or
+secrets — fork PRs build fine.
+
+Two things that catch people out: non-trivial changes go through the OpenSpec workflow
+(`openspec/`) before implementation, and `docs/summaries/` is gitignored and local-only, so
+only the `docs/features/` entry is required.
+
+Found a security or privacy issue? See [`SECURITY.md`](SECURITY.md) — please don't open a
+public issue for it.
 
 ## License
 
