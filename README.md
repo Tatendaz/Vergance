@@ -93,7 +93,8 @@ full pipeline and the calibration math are in [`ROADMAP.md`](ROADMAP.md) §2–�
 - **Swift 5.9+** (`swift-tools-version: 5.9`; check with `swift --version`). Ships with
   Xcode 15+; on a clean Mac install at least `xcode-select --install`. "No Xcode project"
   below means no `.xcodeproj` — you still need a toolchain.
-- **For the app targets only:** Xcode 15+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+- **For the app targets only:** Xcode 15+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen);
+  the iOS companion targets iOS 17+.
 - The macOS app asks for **camera, microphone and speech-recognition** permission on first run.
 
 ### Core package (no Xcode project)

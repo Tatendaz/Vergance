@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vergance — gaze + voice as a multimodal input layer for Claude</title>
-<meta name="description" content="Look at something on screen, speak, and your intent — resolved to what you were looking at — is delivered to Claude. Gaze supplies the deixis that voice alone can't. On-device: raw camera frames never leave the machine, only semantic events. Swift, Apache 2.0, pre-alpha.">
+<meta name="description" content="Look at something on screen, speak, and your intent — resolved to what you were looking at — becomes a semantic event an agent like Claude can act on. Gaze supplies the deixis that voice alone can't. On-device: raw camera frames never leave the machine, only semantic events. Swift, Apache 2.0.">
 <link rel="canonical" href="https://tatendaz.github.io/Vergance/">
 <meta name="theme-color" content="#0d0f12">
 <meta property="og:type" content="website">
@@ -16,7 +16,7 @@
      Switch to summary_large_image when an image ships. -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Vergance — look at it, say what you want">
-<meta name="twitter:description" content="Gaze + voice as a multimodal input layer for coding agents. On-device, sensor-agnostic, Apache 2.0. Pre-alpha.">
+<meta name="twitter:description" content="Gaze + voice as a multimodal input layer for coding agents. On-device, sensor-agnostic, Apache 2.0.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%91%81%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <!-- softwareVersion and downloadUrl are a matched pair — bump both on every release.
      downloadUrl must resolve to an actual file: /releases/latest is an HTML page, so
@@ -142,7 +142,7 @@
   <header>
     <h1>👁️ Ver<span class="mark">gance</span></h1>
     <p class="tagline">Look at it. Say what you want. <b>Claude knows what "this" means.</b></p>
-    <div class="status">Pre-alpha · scaffolding</div>
+    <div class="status">Phases 0–4 done · Phase 5 underway</div>
     <div class="cta">
       <a class="btn primary" href="https://github.com/Tatendaz/Vergance">GitHub →</a>
       <a class="btn ghost" href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md">Roadmap &amp; spec</a>
@@ -157,8 +157,8 @@
 
   <h2>Two surfaces, one capture layer</h2>
   <ul class="features">
-    <li><b>🎯 Live pointer</b> Gaze + voice → Claude, in real time. The flagship interaction, delivered as a Claude Code skill (<code>/vergance</code>) that starts capture and streams gaze-resolved intent into your agent session, where it edits project files.</li>
-    <li><b>🔥 Post-hoc heatmap</b> Record a session and analyse where attention actually went — the UX-research use case, from the same capture pipeline.</li>
+    <li><b>🎯 Live pointer</b> Gaze + voice → a resolved intent event, in real time. The flagship interaction. Today those events land in the app; handing them to an agent, as a Claude Code skill (<code>/vergance</code>) that streams gaze-resolved intent into your session, is Phase 6.</li>
+    <li><b>🔥 Post-hoc heatmap</b> Record a session and analyse where attention actually went — the UX-research use case, from the same capture pipeline. Phase 8: the <code>session_summary</code> event type exists, the aggregation and the viz don't.</li>
   </ul>
 
   <h2>The honest accuracy bar</h2>
@@ -170,13 +170,13 @@
 
   <h2>What's in the core</h2>
   <ul class="features">
-    <li><b>Sensor-agnostic core</b> Every sensor collapses to the same <code>GazeSample</code>, so the webcam and the iPhone are interchangeable — and can run side by side.</li>
+    <li><b>Sensor-agnostic core</b> Every sensor collapses to the same <code>GazeSample</code>, so backends are interchangeable by design. One exists today — the macOS webcam; the iPhone is Phase 7.</li>
     <li><b>Calibration</b> Nine-point red-dot routine, quadratic least-squares with ridge regularization, reporting RMS error in pixels so the agent knows how far to trust a spatial claim.</li>
     <li><b>One Euro filter</b> Adaptive smoothing — low latency on saccades, heavy smoothing on fixations — instead of a fixed EMA.</li>
     <li><b>Fixation detection</b> A dwell / dispersion detector that turns a raw gaze stream into discrete fixations.</li>
-    <li><b>Element resolution</b> Staged surfaces: own canvas → browser DOM → Accessibility API.</li>
-    <li><b>Claude-facing event schema</b> Debounced, element-resolved <code>Codable</code> events (<code>session_start</code>, <code>fixation</code>, <code>utterance</code>, <code>session_summary</code>) rather than raw 60 Hz samples.</li>
-    <li><b>Drift handling</b> Head pose goes into the feature vector; a large pose delta from the calibration baseline prompts a recalibration.</li>
+    <li><b>Element resolution</b> A fixation resolves to a <i>named</i> element on Vergance's own canvas today; browser-DOM and Accessibility-API surfaces are staged after it.</li>
+    <li><b>Portable event schema</b> Debounced, element-resolved <code>Codable</code> events (<code>session_start</code>, <code>fixation</code>, <code>utterance</code>, <code>session_summary</code>) rather than raw 60 Hz samples. These are the types the Phase 6 hand-off will carry; today they stay in-process.</li>
+    <li><b>Drift handling</b> A large head-pose delta from the calibration baseline prompts a recalibration.</li>
   </ul>
 
   <h2>Explicit non-goals</h2>
@@ -187,12 +187,12 @@
   </ul>
 
   <h2>Status</h2>
-  <p>Pre-alpha scaffolding. <a href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md"><code>ROADMAP.md</code></a> is the source of truth — it holds the full spec, architecture, event schema, and the phased plan. Swift 5.9, macOS 14+ / iOS 17+, Apache 2.0.</p>
+  <p>Phases 0–4 done and Phase 5(a) validated on-device — 48 green tests and a working macOS app; the agent hand-off (Phase 6), the iPhone sensor (Phase 7) and the heatmap (Phase 8) are still ahead. <a href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md"><code>ROADMAP.md</code></a> is the source of truth — it holds the full spec, architecture, event schema, and the phased plan. Swift 5.9, macOS 14+ / iOS 17+, Apache 2.0.</p>
 
   <section class="faq">
     <h2>FAQ</h2>
     <h3>Can I use it today?</h3>
-    <p>Not as a finished product. The sensor-agnostic core, calibration, filtering, fixation detection and element resolution are in place; the rest is on the roadmap. It's Apache 2.0, so you can read it, build on it, and contribute now.</p>
+    <p>Not as a finished product. The sensor-agnostic core, calibration, filtering, fixation detection, voice fusion and element resolution on the app's own canvas are in place; the agent hand-off, the iPhone sensor and the heatmap are on the roadmap. It's Apache 2.0, so you can read it, build on it, and contribute now.</p>
     <h3>Does any video leave my machine?</h3>
     <p>No. Frames are processed on-device and discarded. Only the small semantic events are emitted — that's the whole design, not a setting you have to find.</p>
     <h3>Why gaze instead of a mouse?</h3>

@@ -8,8 +8,9 @@ The README was wrong in both directions at once: it described seven unbuilt thin
 present tense, and it called a 1,814-line app with 48 green tests "pre-alpha / scaffolding."
 This pass verifies every claim against source, moves the phantom ones into future tense with
 an explicit phase marker, restores the shipped-phase status, and adds the prerequisites,
-`git clone` step and contributing gate that were missing. 191 → 143 lines, mostly by cutting
-content that `ROADMAP.md` already owns.
+`git clone` step and contributing gate that were missing. 191 → 143 lines when written
+(205 → 151 after reconciling the two merges from main), mostly by cutting content that
+`ROADMAP.md` already owns.
 
 ## What changed
 
@@ -53,9 +54,11 @@ the Architecture bullets). All of it is linked, not lost — the README already 
 ROADMAP the source of truth.
 
 ### Added
-- A **Contributing** section stating that `.github/workflows/pr-gate.yml:63` fails any PR
+- A **Contributing** section stating that `.github/workflows/pr-gate.yml` fails any PR
   without a `docs/features/*.md` entry, and that `docs/summaries/` is gitignored and not
-  required. This was documented in zero user-facing files.
+  required. This was documented in zero user-facing files when written; `CONTRIBUTING.md`
+  §3 (landed since, via the CI-hardening PR) now covers it in full, and the README
+  paragraph stays as the short version.
 - A new lead: "**Voice can't point. Gaze can.**" The deixis idea was the sharpest thing in
   the project and was buried in the last clause.
 - An honest note that there are no screenshots yet.
@@ -72,3 +75,11 @@ ROADMAP the source of truth.
   `### Non-goals (v1)`, the `cta-primary` example event, the bolded privacy line, and all
   four badge images.
 - Verification: `swift test` — 48 tests, 0 failures, exit 0. Docs only; no source touched.
+- Post-merge reconciliation (review pass): the docs landing page (`docs/index.html`,
+  merged in from main) still said "Pre-alpha · scaffolding" and repeated the same
+  present-tense claims this pass removed from the README — its status pill, Status
+  section, meta descriptions, surface/feature bullets and FAQ now match the corrected
+  status. `SECURITY.md`'s "there are no releases" predated the v0.1.0 release
+  (2026-07-18) and is corrected separately. iOS 17+ joined the README prerequisites,
+  since the Platforms badge advertises it and links there. 48 tests re-verified green
+  on the merged branch.
