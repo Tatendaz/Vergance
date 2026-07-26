@@ -4,8 +4,10 @@
 > intent — resolved to *what you were looking at* — is delivered to Claude.
 > Gaze supplies the deixis ("make **this** bigger") that voice alone can't.
 
-**Status:** pre-alpha / scaffolding. This document is the living spec. Non-trivial changes
-go through the OpenSpec workflow (`openspec/`) before implementation.
+**Status:** Phases 0–4 done, Phase 5(a) validated on-device (48 green tests, working macOS
+app); Phases 5(b)–9 ahead. This document is the living spec, so it describes the *target*
+system throughout — see §5 for what is actually built. Non-trivial changes go through the
+OpenSpec workflow (`openspec/`) before implementation.
 
 ---
 
@@ -19,9 +21,10 @@ Two product surfaces fall out of the same capture layer:
 - **Live pointer** — gaze + voice → Claude, in real time (the flagship interaction).
 - **Post-hoc heatmap** — record a session, analyse where attention went (UX research).
 
-Both ship — see the v1-mode decision in §6. The live-pointer surface is delivered as a
+Both are planned v1 surfaces — see the v1-mode decision in §6. The live-pointer surface will be delivered as a
 **Vergance skill for Claude Code** (`/vergance`): invoke it to start gaze+voice capture and
 feed gaze-resolved intent straight into your Claude Code session, where the agent edits files.
+That hand-off is **Phase 6**; today the resolved events land as app state.
 
 ### Honest accuracy bar
 - **Webcam (v1):** region-level. Reliable 2×2 quadrant; 3×3 with a still head and good
@@ -145,7 +148,9 @@ Claude never sees raw 60 Hz samples — the app does the perception and emits de
 - `session_summary` — per-region fixation counts, total dwell, **first-fixation time**,
   and scanpath (the heatmap / UX-analysis reduction).
 
-All four are implemented as `Codable` types in `GazeKit/Events.swift`.
+All four are implemented as `Codable` types in `GazeKit/Events.swift`. The macOS app emits
+`session_start`, `fixation` and `utterance` today (in-process); `session_summary` is defined
+in the schema but never constructed — nothing emits it until the Phase 8 aggregation lands.
 
 ---
 
@@ -154,9 +159,9 @@ All four are implemented as `Codable` types in `GazeKit/Events.swift`.
 | Phase | Title | Deliverable | Why |
 |---|---|---|---|
 | **0** | Foundations | Repo, `GazeKit` package, CI, `GazeSample`/`GazeSensor`, event-schema types, unit tests | ✅ done — builds + 8 tests green |
-| **1** | Webcam probe | macOS app: live webcam + Vision landmark overlay + head-pose readout | **De-risks the whole approach** — is pupil tracking stable enough? |
-| **2** | Calibration + mapping | 9-point red-dot UI, ridge regression, One Euro, live RMS-error readout | Produces the mapping everything downstream needs |
-| **3** | Fixation + events | Dwell/dispersion detector → `session_start` + `fixation` emit | First real event stream |
+| **1** | Webcam probe | macOS app: live webcam + Vision landmark overlay + head-pose readout | ✅ done — **de-risked the whole approach**; pupil tracking is stable enough |
+| **2** | Calibration + mapping | 9-point red-dot UI, ridge regression, One Euro, live RMS-error readout | ✅ done — produces the mapping everything downstream needs |
+| **3** | Fixation + events | Dwell/dispersion detector → `session_start` + `fixation` emit | ✅ done — first real event stream |
 | **4** | Voice fusion | `SFSpeechRecognizer` + lip-MAR voice-activity → `utterance` events | ✅ done — 35 tests green, app builds, voice→utterance validated on-device |
 | **5** | Element resolution | Staged surfaces: (a) own canvas → (b) browser DOM → (c) Accessibility API; `primaryTarget` heuristic | 🚧 (a) own-canvas ✅ done — 48 tests green, named `cta-primary` targets validated on-device; (b) DOM + (c) AX pending |
 | **6** | Claude integration + skill | Ship a **Vergance Claude Code skill** (`/vergance`) that starts gaze+voice capture and streams gaze-resolved utterances into the agent session, which edits project files | The payoff loop — and the natural home for "local agent edits files" |

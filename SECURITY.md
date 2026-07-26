@@ -32,7 +32,7 @@ description or synthetic data is enough.
 
 **What to expect:** an acknowledgement within a few days, and an assessment of
 severity and a fix plan once the report has been reproduced. Vergance is a
-pre-alpha personal project with a single maintainer, so please calibrate your
+pre-1.0 personal project with a single maintainer, so please calibrate your
 expectations for response speed accordingly — but reports will be read and taken
 seriously. You will be credited in the advisory unless you'd rather not be.
 
@@ -40,9 +40,9 @@ Please give a reasonable window for a fix before disclosing publicly.
 
 ## Supported versions
 
-Vergance is **pre-alpha**. There are no releases and no version branches; only
-the `main` branch is supported, and fixes land there. Do not run this on data or
-a machine you care about yet.
+Vergance is **pre-1.0**. Tagged releases (v0.1.0) are point-in-time source
+snapshots with no maintenance branches; only the `main` branch is supported, and
+fixes land there. Do not run this on data or a machine you care about yet.
 
 ## The privacy claim, stated precisely
 
@@ -90,8 +90,9 @@ and treat any *outbound* traffic from Vergance today as a bug worth reporting.
 - Capture is **push-to-talk**, not always-listening — the microphone runs only
   while the Talk control is held.
 - What crosses the boundary out of the capture layer are the `Codable` events in
-  `Sources/GazeKit/Events.swift` (`session_start`, `fixation`, `utterance`,
-  `session_summary`). An `utterance` **does carry recognized text** — the words
+  `Sources/GazeKit/Events.swift`: `session_start`, `fixation` and `utterance` today;
+  `session_summary` is defined in the schema but never constructed — nothing emits it
+  until the Phase 8 aggregation lands. An `utterance` **does carry recognized text** — the words
   you spoke. That is the point of the product, but it means the event stream is
   sensitive, and anything that consumes it (Phase 6's Claude Code skill) inherits
   that sensitivity.
