@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vergance — gaze + voice as a multimodal input layer for Claude</title>
+<meta name="description" content="Look at something on screen, speak, and your intent — resolved to what you were looking at — is delivered to Claude. Gaze supplies the deixis that voice alone can't. On-device: raw camera frames never leave the machine, only semantic events. Swift, Apache 2.0, pre-alpha.">
+<link rel="canonical" href="https://tatendaz.github.io/Vergance/">
+<meta name="theme-color" content="#0d0f12">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Vergance — look at it, say what you want">
+<meta property="og:description" content="Gaze + voice as a multimodal input layer. Gaze supplies the deixis (&quot;make this bigger&quot;) that voice alone can't. On-device — only semantic events leave the machine.">
+<meta property="og:url" content="https://tatendaz.github.io/Vergance/">
+<!-- summary, not summary_large_image: this repo has no social-preview.png yet, and a
+     large-image card with no og:image/twitter:image just falls back to a plain card.
+     Switch to summary_large_image when an image ships. -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Vergance — look at it, say what you want">
+<meta name="twitter:description" content="Gaze + voice as a multimodal input layer for coding agents. On-device, sensor-agnostic, Apache 2.0. Pre-alpha.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%91%81%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<!-- softwareVersion and downloadUrl are a matched pair — bump both on every release.
+     downloadUrl must resolve to an actual file: /releases/latest is an HTML page, so
+     this points at the tag's source archive, which is what ships (no binary assets). -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Vergance",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS 14+, iOS 17+",
+  "softwareVersion": "0.1.0",
+  "description": "A desktop tool that uses gaze and voice as a multimodal input layer for coding agents. The camera watches your eyes and mouth; you look at a UI element, say a command, and Vergance emits a semantic event resolved to what you were looking at. Raw camera frames never leave the device — only the events do.",
+  "url": "https://tatendaz.github.io/Vergance/",
+  "downloadUrl": "https://github.com/Tatendaz/Vergance/archive/refs/tags/v0.1.0.tar.gz",
+  "sameAs": "https://github.com/Tatendaz/Vergance",
+  "license": "https://github.com/Tatendaz/Vergance/blob/main/LICENSE",
+  "programmingLanguage": "Swift",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "Tatenda Zhou", "url": "https://tatendaz.github.io/" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Can I use it today?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Not as a finished product. The sensor-agnostic core, calibration, filtering, fixation detection and element resolution are in place; the rest is on the roadmap. It's Apache 2.0, so you can read it, build on it, and contribute now." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does any video leave my machine?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Frames are processed on-device and discarded. Only the small semantic events are emitted — that's the whole design, not a setting you have to find." }
+    },
+    {
+      "@type": "Question",
+      "name": "Why gaze instead of a mouse?",
+      "acceptedAnswer": { "@type": "Answer", "text": "You're already looking at the thing you're talking about. A mouse makes you say it twice — once with your eyes, once with your hand — and neither survives into the prompt you eventually type." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it need an iPhone?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. A webcam works today at region-level accuracy; the iPhone's TrueDepth camera is the v2 path to real gaze vectors and depth. Because everything collapses to one GazeSample, adding the phone later doesn't mean rewriting anything." }
+    }
+  ]
+}
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d0f12; --panel: #16191e; --border: rgba(255,255,255,0.11);
+    --text: #f2efe9; --muted: #9a948a; --accent: #6f8fff; --warn: #e0a03c;
+    /* White on the dark accent lands around 3:1, under the 4.5:1 bar for button
+       text. Dark-on-accent gets it to ~6:1. */
+    --on-accent: #0a1020;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #faf7f2; --panel: #ffffff; --border: rgba(0,0,0,0.12);
+      --text: #1c1a17; --muted: #6b665e; --accent: #3550c8; --warn: #9a6a12;
+      --on-accent: #ffffff;
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 64px 24px 80px; }
+  header { text-align: center; margin-bottom: 48px; }
+  h1 { font-size: clamp(44px, 8vw, 72px); font-weight: 800; letter-spacing: -1.5px; }
+  h1 .mark { color: var(--accent); }
+  .tagline { font-size: clamp(19px, 3.2vw, 26px); font-weight: 600; color: var(--muted); margin-top: 10px; }
+  .tagline b { color: var(--text); }
+  .status {
+    display: inline-block; margin-top: 20px; padding: 7px 15px; border-radius: 999px;
+    border: 1px solid var(--warn); color: var(--warn); font-size: 14px; font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+  .btn {
+    display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 700;
+    text-decoration: none; font-size: 16px;
+  }
+  .btn.primary { background: var(--accent); color: var(--on-accent); }
+  .btn.ghost { border: 1px solid var(--border); color: var(--text); }
+  .event {
+    margin: 22px auto 0; max-width: 620px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14.5px; text-align: left; line-height: 1.65; color: var(--muted);
+  }
+  .event b { color: var(--text); }
+  h2 { font-size: 26px; font-weight: 800; margin: 56px 0 16px; letter-spacing: -0.5px; }
+  p + p { margin-top: 12px; }
+  ul.features { list-style: none; display: grid; gap: 12px; }
+  ul.features li {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;
+  }
+  ul.features b { display: block; }
+  ul.plain { list-style: none; display: grid; gap: 8px; }
+  ul.plain li { padding-left: 22px; position: relative; color: var(--muted); }
+  ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--accent); }
+  ul.plain b { color: var(--text); }
+  pre {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font-size: 14.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.7;
+  }
+  pre .c { color: var(--muted); }
+  a { color: var(--accent); }
+  .fact { color: var(--muted); }
+  .faq h3 { font-size: 18px; font-weight: 700; margin: 24px 0 6px; letter-spacing: -0.2px; }
+  .faq p { color: var(--muted); }
+  .faq p b, .faq p code { color: var(--text); }
+  footer { margin-top: 64px; text-align: center; color: var(--muted); font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>👁️ Ver<span class="mark">gance</span></h1>
+    <p class="tagline">Look at it. Say what you want. <b>Claude knows what "this" means.</b></p>
+    <div class="status">Pre-alpha · scaffolding</div>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Tatendaz/Vergance">GitHub →</a>
+      <a class="btn ghost" href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md">Roadmap &amp; spec</a>
+    </div>
+    <div class="event">the user looked at <b>cta-primary</b> for <b>620 ms</b><br>while saying <b>"make this bigger"</b></div>
+  </header>
+
+  <h2>What it is</h2>
+  <p><b>Gaze + voice as a multimodal input layer.</b> The camera watches your eyes and mouth. You look at a UI element, say a command, and Vergance emits a small, semantic event that an agent like Claude can act on.</p>
+  <p>The point is <i>deixis</i> — the pointing part of language. "Make <b>this</b> bigger" is the most natural way to ask for a change and the least useful thing to type, because the word <code>this</code> carries no information without a gesture. Gaze supplies the gesture. Voice alone can't.</p>
+  <p class="fact"><b>Raw camera frames never leave the device — only semantic events do.</b></p>
+
+  <h2>Two surfaces, one capture layer</h2>
+  <ul class="features">
+    <li><b>🎯 Live pointer</b> Gaze + voice → Claude, in real time. The flagship interaction, delivered as a Claude Code skill (<code>/vergance</code>) that starts capture and streams gaze-resolved intent into your agent session, where it edits project files.</li>
+    <li><b>🔥 Post-hoc heatmap</b> Record a session and analyse where attention actually went — the UX-research use case, from the same capture pipeline.</li>
+  </ul>
+
+  <h2>The honest accuracy bar</h2>
+  <p>Eye tracking attracts overclaiming, so this is stated up front:</p>
+  <ul class="plain">
+    <li><b>Webcam (v1) — region-level.</b> A 2×2 quadrant split is reliable. 3×3 works with a still head and good light. Enough to drive the interaction, <b>not</b> enough to distinguish adjacent buttons.</li>
+    <li><b>iPhone TrueDepth (v2) — materially better.</b> Real gaze vectors plus depth.</li>
+  </ul>
+
+  <h2>What's in the core</h2>
+  <ul class="features">
+    <li><b>Sensor-agnostic core</b> Every sensor collapses to the same <code>GazeSample</code>, so the webcam and the iPhone are interchangeable — and can run side by side.</li>
+    <li><b>Calibration</b> Nine-point red-dot routine, quadratic least-squares with ridge regularization, reporting RMS error in pixels so the agent knows how far to trust a spatial claim.</li>
+    <li><b>One Euro filter</b> Adaptive smoothing — low latency on saccades, heavy smoothing on fixations — instead of a fixed EMA.</li>
+    <li><b>Fixation detection</b> A dwell / dispersion detector that turns a raw gaze stream into discrete fixations.</li>
+    <li><b>Element resolution</b> Staged surfaces: own canvas → browser DOM → Accessibility API.</li>
+    <li><b>Claude-facing event schema</b> Debounced, element-resolved <code>Codable</code> events (<code>session_start</code>, <code>fixation</code>, <code>utterance</code>, <code>session_summary</code>) rather than raw 60 Hz samples.</li>
+    <li><b>Drift handling</b> Head pose goes into the feature vector; a large pose delta from the calibration baseline prompts a recalibration.</li>
+  </ul>
+
+  <h2>Explicit non-goals</h2>
+  <ul class="plain">
+    <li><b>Silent lipreading.</b> Visual speech recognition is unreliable. Vergance uses <i>audio for words</i> and <i>lips for timing</i> — mouth openness as voice-activity detection and emphasis.</li>
+    <li><b>Pixel-precise gaze.</b> Region- and element-level is the target.</li>
+    <li><b>Cloud video.</b> On-device only.</li>
+  </ul>
+
+  <h2>Status</h2>
+  <p>Pre-alpha scaffolding. <a href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md"><code>ROADMAP.md</code></a> is the source of truth — it holds the full spec, architecture, event schema, and the phased plan. Swift 5.9, macOS 14+ / iOS 17+, Apache 2.0.</p>
+
+  <section class="faq">
+    <h2>FAQ</h2>
+    <h3>Can I use it today?</h3>
+    <p>Not as a finished product. The sensor-agnostic core, calibration, filtering, fixation detection and element resolution are in place; the rest is on the roadmap. It's Apache 2.0, so you can read it, build on it, and contribute now.</p>
+    <h3>Does any video leave my machine?</h3>
+    <p>No. Frames are processed on-device and discarded. Only the small semantic events are emitted — that's the whole design, not a setting you have to find.</p>
+    <h3>Why gaze instead of a mouse?</h3>
+    <p>You're already looking at the thing you're talking about. A mouse makes you say it twice — once with your eyes, once with your hand — and neither survives into the prompt you eventually type.</p>
+    <h3>Does it need an iPhone?</h3>
+    <p>No. A webcam works today at region-level accuracy; the iPhone's TrueDepth camera is the v2 path to real gaze vectors and depth. Because everything collapses to one <code>GazeSample</code>, adding the phone later doesn't mean rewriting anything.</p>
+  </section>
+
+  <footer>
+    Apache 2.0 © <a href="https://github.com/Tatendaz">Tatendaz</a> ·
+    <a href="https://github.com/Tatendaz/Vergance">Source</a> ·
+    <a href="https://tatendaz.github.io/">More work</a>
+  </footer>
+</div>
+</body>
+</html>
