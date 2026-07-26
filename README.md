@@ -123,7 +123,8 @@ rationale.
 - **iOS:** ARKit (TrueDepth), Network.framework + Bonjour; iOS 17+
 - **Speech:** `SFSpeechRecognizer`
 - **App project generation:** [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`project.yml`)
-- **CI:** GitHub Actions — `swift build` + `swift test` on a macOS runner
+- **CI:** GitHub Actions — core compile + platform-agnostic guard on Linux, `swift test` plus an
+  unsigned build of both app targets on macOS
 
 ## Getting started
 
@@ -161,7 +162,9 @@ open Vergance.xcodeproj
 ├── docs/features/           # per-feature change notes
 ├── openspec/                # OpenSpec change workflow
 ├── ROADMAP.md               # living spec + phased plan (source of truth)
-└── .github/workflows/       # CI + PR gate
+├── CONTRIBUTING.md          # how to land a change here
+├── SECURITY.md              # vulnerability disclosure + the privacy claim, stated precisely
+└── .github/                 # CI + PR gate workflows, CODEOWNERS, PR template
 ```
 
 ## Roadmap / status
@@ -184,6 +187,17 @@ plan, from [`ROADMAP.md`](ROADMAP.md):
 | **9** | Polish | Calibration profiles, recalibration UX, privacy pass, packaging |
 
 Non-trivial changes go through the OpenSpec workflow (`openspec/`) before implementation.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR. It covers the OpenSpec
+propose → apply → sync → archive workflow and when it's required, the `docs/features/` entry
+every PR must carry, the rule that `Sources/GazeKit` may import only Foundation (CI enforces it
+by compiling the core on Linux), and the required checks. You need no Apple ID, certificate or
+secrets — fork PRs build fine.
+
+Found a security or privacy issue? See [`SECURITY.md`](SECURITY.md) — please don't open a
+public issue for it.
 
 ## License
 
