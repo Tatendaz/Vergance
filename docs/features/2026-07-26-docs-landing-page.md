@@ -39,7 +39,15 @@ field pointed at the portfolio root, which made it *look* like a site existed wh
   and description until one exists. `ROADMAP.md` notes the README has no images either —
   worth a combined pass. For the same reason `twitter:card` is `summary` rather than
   `summary_large_image`, which without an image just degrades to a plain card.
-- **`downloadUrl` points at `/releases/latest`, not the repo root.** The repo root is a
-  landing page, not a download destination; `v0.1.0` exists and its source tarball is the
-  actual artifact. The repo URL is kept as `sameAs`.
+- **`downloadUrl` points at the tag's source archive.** It went through two corrections.
+  The repo root is a landing page, not a download; so is `/releases/latest`, which just
+  302s to the release's HTML page — and `v0.1.0` has no uploaded assets, so there is no
+  binary to link. `archive/refs/tags/v0.1.0.tar.gz` returns `200 application/x-gzip`, and
+  for a source-distributed Swift package that archive genuinely is the artifact. The repo
+  URL is kept as `sameAs`.
+- **`softwareVersion` is `0.1.0`, not `pre-alpha`.** It has to name the same version
+  `downloadUrl` resolves to, and the field takes a version string rather than a maturity
+  label. The pre-alpha caveat is unaffected — it still leads the page in the status pill,
+  the meta description, and its own section. **Both fields are a matched pair: bump them
+  together on every release.** There's an HTML comment above the block saying so.
 - **Pages still needs enabling** (Settings → Pages → `main` / `/docs`) after merge.

@@ -18,6 +18,9 @@
 <meta name="twitter:title" content="Vergance — look at it, say what you want">
 <meta name="twitter:description" content="Gaze + voice as a multimodal input layer for coding agents. On-device, sensor-agnostic, Apache 2.0. Pre-alpha.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%91%81%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<!-- softwareVersion and downloadUrl are a matched pair — bump both on every release.
+     downloadUrl must resolve to an actual file: /releases/latest is an HTML page, so
+     this points at the tag's source archive, which is what ships (no binary assets). -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -25,10 +28,10 @@
   "name": "Vergance",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS 14+, iOS 17+",
-  "softwareVersion": "pre-alpha",
+  "softwareVersion": "0.1.0",
   "description": "A desktop tool that uses gaze and voice as a multimodal input layer for coding agents. The camera watches your eyes and mouth; you look at a UI element, say a command, and Vergance emits a semantic event resolved to what you were looking at. Raw camera frames never leave the device — only the events do.",
   "url": "https://tatendaz.github.io/Vergance/",
-  "downloadUrl": "https://github.com/Tatendaz/Vergance/releases/latest",
+  "downloadUrl": "https://github.com/Tatendaz/Vergance/archive/refs/tags/v0.1.0.tar.gz",
   "sameAs": "https://github.com/Tatendaz/Vergance",
   "license": "https://github.com/Tatendaz/Vergance/blob/main/LICENSE",
   "programmingLanguage": "Swift",
