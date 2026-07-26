@@ -32,7 +32,7 @@ description or synthetic data is enough.
 
 **What to expect:** an acknowledgement within a few days, and an assessment of
 severity and a fix plan once the report has been reproduced. Vergance is a
-pre-alpha personal project with a single maintainer, so please calibrate your
+pre-1.0 personal project with a single maintainer, so please calibrate your
 expectations for response speed accordingly — but reports will be read and taken
 seriously. You will be credited in the advisory unless you'd rather not be.
 
@@ -40,9 +40,9 @@ Please give a reasonable window for a fix before disclosing publicly.
 
 ## Supported versions
 
-Vergance is **pre-alpha**. There are no releases and no version branches; only
-the `main` branch is supported, and fixes land there. Do not run this on data or
-a machine you care about yet.
+Vergance is **pre-1.0**. Tagged releases (v0.1.0) are point-in-time source
+snapshots with no maintenance branches; only the `main` branch is supported, and
+fixes land there. Do not run this on data or a machine you care about yet.
 
 ## The privacy claim, stated precisely
 
