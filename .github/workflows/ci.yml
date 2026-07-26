@@ -1,24 +1,191 @@
 name: CI
 
-# Public repo → GitHub Actions minutes are free, including macOS runners.
+# One workflow, two jobs, one macOS runner per PR.
+#
+# Before: ci.yml AND pr-gate.yml each ran `swift build` + `swift test` on macos-15,
+# so every PR to main paid for the same macOS build+test twice and neither of them
+# ever compiled apps/. Now the work that needs no Apple frameworks moved to Linux,
+# the macOS job also builds the two app targets, and pr-gate.yml is the docs gate
+# only. Net: macOS jobs per PR 2 -> 1, while CI starts covering apps/ for the
+# first time.
+#
+# Runner strategy:
+#   * Sources/GazeKit imports ONLY Foundation (13/13 files), so it compiles on
+#     Linux. That is what MECHANICALLY enforces the platform-agnostic-core rule
+#     from CLAUDE.md — an `import AVFoundation` in the core fails here and
+#     nowhere else. Previously the rule was enforced only by a human ticking a
+#     checkbox in openspec tasks.md 1.6.
+#   * `swift test` EXECUTION is not run on Linux: the XCTest bundle builds and
+#     links there, then hangs (timeout exit 124) in every local reproduction —
+#     Swift 6.1.3 and 6.3.3, aarch64 and x86_64, including the exact x86_64 +
+#     6.3.3 pair ubuntu-24.04 ships. The authoritative test run stays on macOS,
+#     where it is verified green (48 tests, 0 failures).
+#
+# Fork PRs work with no secrets: the app builds pass CODE_SIGNING_ALLOWED=NO.
+
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+
+# Least privilege: nothing here writes to the repo, comments, or publishes.
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Per-PR (not per-ref) so a force-push supersedes its own run and nothing else.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Never cancel a main build — only supersede PR runs.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  gazekit:
-    name: GazeKit · build + test
-    runs-on: macos-15
+  # ---------------------------------------------------------------------------
+  # 1. Linux — cheapest runner that does real work, and the platform guard.
+  # ---------------------------------------------------------------------------
+  core-linux:
+    name: GazeKit · Linux compile + platform guard
+    # PINNED ON PURPOSE — do NOT "modernize" this to ubuntu-latest.
+    # The ubuntu-24.04 image ships Swift 6.3.3 preinstalled, so this job needs no
+    # setup-swift action and no container. The ubuntu-26.04 image ships NO Swift
+    # at all. The moment `ubuntu-latest` rolls forward to 26.04, an unpinned job
+    # here breaks with "swift: command not found". If that day comes, either bump
+    # this pin to a release that still has Swift, or uncomment the `container:`
+    # line below — the official image carries its own toolchain and is immune.
+    runs-on: ubuntu-24.04
+    # container: swift:6.3-noble
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
       - name: Swift version
         run: swift --version
-      - name: Build
-        run: swift build
-      - name: Test
-        run: swift test
+
+      # The core has ZERO external dependencies (Package.swift has no
+      # `dependencies:`), so this cache only ever holds locally-compiled objects
+      # — nothing to resolve or download. Cold build is ~2s, so the payoff is
+      # small; it is here because it is free and harmless, not load-bearing.
+      - name: Cache SwiftPM build directory
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}-
+            ${{ runner.os }}-${{ runner.arch }}-spm-
+
+      # Explicit guard FIRST so the failure message is actionable. Without it a
+      # violation surfaces only as a confusing "no such module 'AVFoundation'".
+      - name: Guard — GazeKit core must stay platform-agnostic
+        run: |
+          set -euo pipefail
+          # CLAUDE.md: "Keep the core platform-agnostic — sensor implementations
+          # that import AVFoundation/Vision/ARKit belong in the app targets, not
+          # in GazeKit."
+          # The trailing ([^A-Za-z0-9_]|$) is a portable word boundary (works with
+          # both GNU and BSD grep) and still catches submodule forms such as
+          # `import AVFoundation.AVCaptureDevice`, while letting a hypothetical
+          # `VisionKit`-style name through only if it is genuinely a different module.
+          banned='^[[:space:]]*(@testable[[:space:]]+)?import[[:space:]]+(AVFoundation|Vision|ARKit|Speech|UIKit|AppKit|SwiftUI|CoreVideo|CoreGraphics|QuartzCore|Combine|CoreML|CoreMedia)([^A-Za-z0-9_]|$)'
+          if grep -rnE "$banned" Sources/GazeKit Tests/GazeKitTests; then
+            echo "::error::GazeKit core (or its tests) imports an Apple-only framework."
+            echo "Move sensor/UI code into apps/macOS or apps/iOS — see CONTRIBUTING.md,"
+            echo "CLAUDE.md, and openspec tasks.md 1.6. Keeping the core Foundation-only"
+            echo "is what lets it compile on Linux (and on any future non-Apple target)."
+            exit 1
+          fi
+          echo "OK: GazeKit and its tests import no Apple-only frameworks."
+
+      # --build-tests compiles the XCTest target too, so a test file that only
+      # compiles against Apple frameworks is caught here as well.
+      - name: Build core + tests (Linux)
+        run: swift build --build-tests
+
+      # NOTE: `swift test` is deliberately NOT run here — see the header comment.
+      # To settle whether the Linux hang is real on a bare runner (every local
+      # reproduction was inside Docker), temporarily change the step above to
+      #     run: timeout 300 swift test
+      # and read one CI run. The `timeout` is what stops a hang from burning the
+      # job's whole budget. If it passes, make it permanent and the macOS
+      # `swift test` step becomes optional.
+
+  # ---------------------------------------------------------------------------
+  # 2. macOS — the only job that needs Apple hardware. It now does double duty:
+  #    the authoritative unit-test run AND the app-target compile that CI has
+  #    never covered. Still one macOS runner per PR, versus two before.
+  # ---------------------------------------------------------------------------
+  apple:
+    name: GazeKit · macOS tests + app builds
+    # macos-15 pinned deliberately: macos-latest now resolves to macOS 26.
+    # Worth a periodic review — macos-15 will eventually be retired.
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Versions
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Cache SwiftPM build directory
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}-
+            ${{ runner.os }}-${{ runner.arch }}-spm-
+
+      # The authoritative test run. Verified locally: 48 tests, 0 failures.
+      - name: Build + test GazeKit
+        run: |
+          set -euo pipefail
+          swift build
+          swift test
+
+      # XcodeGen is not preinstalled on the macOS runner image.
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # project.yml GENERATES apps/**/Info.plist and apps/macOS/Vergance.entitlements,
+      # both of which are .gitignored — a fresh clone has neither file. So this step
+      # is mandatory before any xcodebuild, not a convenience.
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # CODE_SIGNING_ALLOWED=NO is what makes this work for FORK PRs: no Apple ID,
+      # no certificate, no provisioning profile, no secrets. GitHub does not expose
+      # secrets to fork-triggered `pull_request` runs, so anything needing signing
+      # (archive/notarize/distribute) must never live in this workflow.
+      #
+      # These two steps are the ONLY coverage the 15 Swift files under apps/ get —
+      # nothing here can be unit-tested (see CONTRIBUTING.md "Does my change need a
+      # test?"), so a clean compile is the guarantee.
+      - name: Build macOS app (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project Vergance.xcodeproj \
+            -scheme Vergance \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Build iOS companion (simulator, unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project Vergance.xcodeproj \
+            -scheme VerganceCompanion \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
