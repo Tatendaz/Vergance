@@ -21,7 +21,7 @@ Two product surfaces fall out of the same capture layer:
 - **Live pointer** — gaze + voice → Claude, in real time (the flagship interaction).
 - **Post-hoc heatmap** — record a session, analyse where attention went (UX research).
 
-Both ship — see the v1-mode decision in §6. The live-pointer surface will be delivered as a
+Both are planned v1 surfaces — see the v1-mode decision in §6. The live-pointer surface will be delivered as a
 **Vergance skill for Claude Code** (`/vergance`): invoke it to start gaze+voice capture and
 feed gaze-resolved intent straight into your Claude Code session, where the agent edits files.
 That hand-off is **Phase 6**; today the resolved events land as app state.
