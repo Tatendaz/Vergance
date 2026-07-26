@@ -17,17 +17,18 @@ field pointed at the portfolio root, which made it *look* like a site existed wh
 - `docs/index.html` — one file, no build step, no external requests (inline CSS, inline SVG
   favicon).
   - SEO head: `<title>`, meta description, `rel=canonical`, Open Graph, Twitter card.
-  - Structured data: `SoftwareApplication` (with `softwareVersion: pre-alpha`) + `FAQPage`
+  - Structured data: `SoftwareApplication` (with `softwareVersion: 0.1.0`) + `FAQPage`
     declaring exactly the four Q&A pairs the page renders, no more.
   - Content: hero with the semantic-event example, what-it-is, the two product surfaces,
     the honest accuracy bar, what's in the core, explicit non-goals, status, FAQ.
 - `docs/.nojekyll` — skip Jekyll processing, matching `yapui` and `claude-usage`.
 
 ## Notes
-- **The page leads with the pre-alpha status**, in a bordered pill directly under the
-  tagline and again in the structured data. Eye tracking is a field that attracts
-  overclaiming, and the README is careful about this; a landing page that quietly dropped
-  the caveat would be the one place the project oversold itself.
+- **The page leads with the pre-alpha status** — a bordered pill directly under the
+  tagline, the meta description, and a status section of its own. Eye tracking
+  is a field that attracts overclaiming, and the README is careful about this; a landing
+  page that quietly dropped the caveat would be the one place the project oversold itself.
+  The caveat deliberately lives in prose rather than in `softwareVersion` — see below.
 - **The accuracy bar and the non-goals get their own sections** rather than being buried.
   "2×2 quadrant reliable, not enough to distinguish adjacent buttons" and "no silent
   lipreading" are differentiators, not disclaimers.
