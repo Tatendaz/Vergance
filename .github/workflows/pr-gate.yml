@@ -38,6 +38,8 @@ defaults:
 
 jobs:
   docs-gate:
+    # Dependabot bumps never carry docs entries; the docs gate is for human/agent PRs.
+    if: github.actor != 'dependabot[bot]'
     name: Docs gate
     # Pinned, not ubuntu-latest — see the comment in ci.yml. This job needs no
     # Swift, but keeping both workflows on the same pinned image avoids a
