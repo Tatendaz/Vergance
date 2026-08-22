@@ -94,7 +94,7 @@
     background: var(--bg); color: var(--text); line-height: 1.6;
   }
   .wrap { max-width: 880px; margin: 0 auto; padding: 64px 24px 80px; }
-  header { text-align: center; margin-bottom: 48px; }
+  .hero { text-align: center; margin-bottom: 48px; }
   h1 { font-size: clamp(44px, 8vw, 72px); font-weight: 800; letter-spacing: -1.5px; }
   h1 .mark { color: var(--accent); }
   .tagline { font-size: clamp(19px, 3.2vw, 26px); font-weight: 600; color: var(--muted); margin-top: 10px; }
@@ -145,7 +145,7 @@
 <body>
 <div class="wrap">
   <main>
-  <header>
+  <div class="hero">
     <h1>👁️ Ver<span class="mark">gance</span></h1>
     <p class="tagline">Look at it. Say what you want. <b>Claude knows what "this" means.</b></p>
     <div class="status">Phases 0–4 done · Phase 5 underway</div>
@@ -154,7 +154,7 @@
       <a class="btn ghost" href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md">Roadmap &amp; spec</a>
     </div>
     <div class="event">the user looked at <b>cta-primary</b> for <b>620 ms</b><br>while saying <b>"make this bigger"</b></div>
-  </header>
+  </div>
 
   <h2>What it is</h2>
   <p><b>Gaze + voice as a multimodal input layer.</b> The camera watches your eyes and mouth. You look at a UI element, say a command, and Vergance emits a small, semantic event that an agent like Claude can act on.</p>

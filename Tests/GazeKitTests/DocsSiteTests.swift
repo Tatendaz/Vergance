@@ -95,6 +95,10 @@ final class DocsSiteTests: XCTestCase {
         XCTAssertEqual(Self.matches("<h1\\b", in: html).count, 1, "exactly one <h1>")
         XCTAssertEqual(Self.matches("<h1\\b", in: main).count, 1, "the <h1> must be inside <main>")
         XCTAssertGreaterThanOrEqual(Self.blockText(main).count, 500, "500+ chars of text inside <main>")
+        // Boilerplate-stripping extractors drop <header>/<nav>/<aside>/<footer> before counting.
+        for tag in ["<header", "<nav", "<aside", "<footer"] {
+            XCTAssertFalse(main.lowercased().contains(tag), "\(tag) inside <main> would hide content from agents")
+        }
     }
 
     func testHeadAdvertisesMarkdownTwinAndLlmsTxt() throws {
