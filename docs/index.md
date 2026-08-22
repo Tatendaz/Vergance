@@ -8,7 +8,7 @@ Phases 0–4 done · Phase 5 underway
 
 Example event:
 
-```
+```text
 the user looked at cta-primary for 620 ms
 while saying "make this bigger"
 ```

@@ -23,51 +23,114 @@ final class DocsSiteTests: XCTestCase {
         }
     }
 
-    /// Visible text of an HTML fragment; `separator` replaces each tag (" " for blocks, "" for inline).
-    private static func text(_ html: String, separator: String) -> String {
-        let noCode = html.replacingOccurrences(of: "(?si)<(script|style)\\b[^>]*>.*?</\\1>", with: "", options: .regularExpression)
-        let stripped = noCode.replacingOccurrences(of: "<[^>]+>", with: separator, options: .regularExpression)
-        let decoded = stripped
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-        return decoded
+    /// Inner HTML of the single `<tag>…</tag>` element in the document.
+    private static func section(_ tag: String, in html: String, file: StaticString = #filePath, line: UInt = #line) -> String {
+        let found = matches("<\(tag)\\b[^>]*>(.*?)</\(tag)>", in: html)
+        XCTAssertEqual(found.count, 1, "expected exactly one <\(tag)>", file: file, line: line)
+        return found.first ?? ""
+    }
+
+    /// Tags removed by a character walk: a `<br>` becomes a space, every other tag vanishes.
+    private static func stripTags(_ html: String) -> String {
+        var out = ""
+        var tag: String? = nil
+        for ch in html {
+            if var current = tag {
+                if ch == ">" {
+                    if current.lowercased().hasPrefix("br") { out.append(" ") }
+                    tag = nil
+                } else {
+                    current.append(ch)
+                    tag = current
+                }
+            } else if ch == "<" {
+                tag = ""
+            } else {
+                out.append(ch)
+            }
+        }
+        return out
+    }
+
+    /// One pass over the entities, so an "&amp;lt;" can never be unescaped twice.
+    private static func decode(_ text: String) -> String {
+        let entities = ["amp": "&", "lt": "<", "gt": ">", "quot": "\"", "#39": "'", "nbsp": " "]
+        var out = ""
+        var rest = Substring(text)
+        while let amp = rest.firstIndex(of: "&") {
+            out += rest[..<amp]
+            let afterAmp = rest[rest.index(after: amp)...]
+            if let semi = afterAmp.firstIndex(of: ";"), let value = entities[String(afterAmp[..<semi])] {
+                out += value
+                rest = afterAmp[afterAmp.index(after: semi)...]
+            } else {
+                out.append("&")
+                rest = afterAmp
+            }
+        }
+        return out + rest
+    }
+
+    /// Collapse whitespace and drop the characters Markdown adds for emphasis/code.
+    private static func squash(_ text: String) -> String {
+        text.replacingOccurrences(of: "[*`\\\\]", with: "", options: .regularExpression)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private static func blockText(_ fragment: String) -> String { squash(decode(stripTags(fragment))) }
+
+    /// The Markdown twin as plain text: no code blocks, links and images reduced to their text.
+    private static func twinPlain(_ md: String) -> String {
+        squash(md
+            .replacingOccurrences(of: "(?s)```.*?```", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "!\\[([^\\]]*)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: "\\[([^\\]]+)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: "(?m)^>\\s?", with: "", options: .regularExpression))
+    }
+
     func testH1AndContentLiveInsideMain() throws {
         let html = try Self.read("docs/index.html")
-        let mains = Self.matches("<main\\b[^>]*>(.*?)</main>", in: html)
-        XCTAssertEqual(mains.count, 1, "exactly one <main>")
+        let main = Self.section("main", in: html)
         XCTAssertEqual(Self.matches("<h1\\b", in: html).count, 1, "exactly one <h1>")
-        XCTAssertEqual(Self.matches("<h1\\b", in: mains.first ?? "").count, 1, "the <h1> must be inside <main>")
-        XCTAssertGreaterThanOrEqual(Self.text(mains.first ?? "", separator: " ").count, 500, "500+ chars of text inside <main>")
+        XCTAssertEqual(Self.matches("<h1\\b", in: main).count, 1, "the <h1> must be inside <main>")
+        XCTAssertGreaterThanOrEqual(Self.blockText(main).count, 500, "500+ chars of text inside <main>")
     }
 
     func testHeadAdvertisesMarkdownTwinAndLlmsTxt() throws {
         let html = try Self.read("docs/index.html")
-        XCTAssertTrue(html.contains("<link rel=\"alternate\" type=\"text/markdown\" href=\"/\(Self.slug)/index.md\""))
-        XCTAssertTrue(html.contains("<link rel=\"describedby\" href=\"/llms.txt\">"))
-        XCTAssertTrue(html.contains("href=\"https://tatendaz.github.io/llms.txt\""))
+        let head = Self.section("head", in: html)
+        XCTAssertTrue(head.contains("<link rel=\"alternate\" type=\"text/markdown\" href=\"/\(Self.slug)/index.md\""))
+        XCTAssertTrue(head.contains("<link rel=\"describedby\" href=\"/llms.txt\">"))
+        XCTAssertTrue(Self.section("footer", in: html).contains("href=\"https://tatendaz.github.io/llms.txt\""))
     }
 
     func testMarkdownTwinMirrorsThePage() throws {
         let html = try Self.read("docs/index.html")
         let md = try Self.read("docs/index.md")
         XCTAssertTrue(md.hasPrefix("# "), "twin must start with an H1")
-        let h1 = Self.text(Self.matches("<h1\\b[^>]*>(.*?)</h1>", in: html).first ?? "", separator: "")
         let firstLine = md.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
-        XCTAssertEqual(String(firstLine.dropFirst(2)).trimmingCharacters(in: .whitespaces), h1)
+        XCTAssertEqual(String(firstLine.dropFirst(2)).trimmingCharacters(in: .whitespaces), Self.blockText(Self.section("h1", in: html)))
         for h2 in Self.matches("<h2\\b[^>]*>(.*?)</h2>", in: html) {
-            let heading = "## " + Self.text(h2, separator: "")
+            let heading = "## " + Self.blockText(h2)
             XCTAssertTrue(md.contains(heading), "twin is missing \"\(heading)\"")
         }
-        XCTAssertGreaterThanOrEqual(md.count, 500)
         XCTAssertTrue(md.contains("HTML version: https://tatendaz.github.io/\(Self.slug)/"))
         XCTAssertTrue(md.contains("https://tatendaz.github.io/llms.txt"))
-        XCTAssertNil(md.range(of: "<(div|span|script|style)\\b", options: .regularExpression), "twin must be plain Markdown")
+        for tag in ["<div", "<span", "<script", "<style"] {
+            XCTAssertFalse(md.contains(tag), "twin must be plain Markdown (found \(tag))")
+        }
+    }
+
+    func testMarkdownTwinCarriesEveryParagraph() throws {
+        let html = try Self.read("docs/index.html")
+        let md = try Self.read("docs/index.md")
+        let main = Self.section("main", in: html)
+        let blocks = Self.matches("<(?:p|li)\\b[^>]*>(.*?)</(?:p|li)>", in: main).map(Self.blockText).filter { !$0.isEmpty }
+        XCTAssertGreaterThanOrEqual(blocks.count, 10, "expected 10+ text blocks inside <main>")
+        let plain = Self.twinPlain(md)
+        for block in blocks {
+            XCTAssertTrue(plain.contains(block), "twin is missing the text: \(block.prefix(80))")
+        }
     }
 }
