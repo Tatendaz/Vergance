@@ -29,7 +29,7 @@ this page; the page now points back at it and ships the Markdown twin that the
 - `docs/index.md`: Markdown twin of the page content, generated from the HTML and then
   hand-checked (the example intent event became a code block). It ends with links back to the HTML version, the
   source, the root site and `llms.txt`.
-- `Tests/GazeKitTests/DocsSiteTests.swift (XCTest, runs under `swift test`)`: one `<main>`, one `<h1>` inside it, 500+ characters of text; the head links
+- `Tests/GazeKitTests/DocsSiteTests.swift` (XCTest, runs under `swift test`): one `<main>`, one `<h1>` inside it, 500+ characters of text; the head links
   are present; the twin starts with the same H1, contains every H2 of the page, and is plain
   Markdown. Run with `swift test --filter DocsSiteTests`.
 
