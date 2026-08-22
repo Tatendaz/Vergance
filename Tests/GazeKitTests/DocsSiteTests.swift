@@ -136,4 +136,34 @@ final class DocsSiteTests: XCTestCase {
             XCTAssertTrue(plain.contains(block), "twin is missing the text: \(block.prefix(80))")
         }
     }
+
+    func testNotFoundPageCarriesMarkdownGuidance() throws {
+        let html = try Self.read("docs/404.html")
+        let head = Self.section("head", in: html)
+        XCTAssertTrue(Self.section("title", in: head).contains("404"))
+        XCTAssertTrue(head.contains("<meta name=\"robots\" content=\"noindex\">"), "a 404 page must not be indexed")
+        XCTAssertEqual(Self.matches("<link\\b[^>]*rel=\"(canonical|alternate)\"", in: html), [], "a 404 page has no canonical URL and no Markdown twin")
+        let main = Self.section("main", in: html)
+        XCTAssertEqual(Self.matches("<(header|nav|aside|footer)\\b", in: main), [], "boilerplate element(s) inside <main> would hide the pointers from agents")
+        XCTAssertLessThan(Self.blockText(main).count, 1500, "keep the 404 body short")
+        // The Is Agentic "Agent-friendly 404s" check gives full credit only when the body carries
+        // short Markdown guidance; GitHub Pages serves text/html, so it lives in a <pre> block.
+        let blocks = Self.matches("<pre class=\"md\"[^>]*>(.*?)</pre>", in: main)
+        XCTAssertEqual(blocks.count, 1, "expected one <pre class=\"md\"> block inside <main>")
+        let md = Self.decode(blocks.first ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertTrue(md.hasPrefix("# 404"), String(md.prefix(40)))
+        XCTAssertFalse(md.contains("<"), "the Markdown block must be plain text, no HTML")
+        XCTAssertLessThan(md.count, 700, "keep the Markdown block short")
+        for needle in ["## Where to look next",
+                       "- [Site map](https://tatendaz.github.io/sitemap.xml)",
+                       "- [llms.txt](https://tatendaz.github.io/llms.txt)",
+                       "https://tatendaz.github.io/\(Self.slug)/"] {
+            XCTAssertTrue(md.contains(needle), "Markdown block is missing \"\(needle)\"")
+        }
+        // Pages serves 404.html at any depth (/Vergance/a/b/c), so a relative URL would break.
+        let absolute = ["/\(Self.slug)/", "http", "mailto:", "#", "data:"]
+        for url in Self.matches("(?:href|src)=\"([^\"]*)\"", in: html) {
+            XCTAssertTrue(absolute.contains(where: { url.hasPrefix($0) }), "relative URL on the 404 page: \(url)")
+        }
+    }
 }
