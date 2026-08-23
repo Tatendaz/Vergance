@@ -6,6 +6,8 @@
 <title>Vergance — gaze + voice as a multimodal input layer for Claude</title>
 <meta name="description" content="Look at something on screen, speak, and your intent — resolved to what you were looking at — becomes a semantic event an agent like Claude can act on. Gaze supplies the deixis that voice alone can't. On-device: raw camera frames never leave the machine, only semantic events. Swift, Apache 2.0.">
 <link rel="canonical" href="https://tatendaz.github.io/Vergance/">
+<link rel="alternate" type="text/markdown" href="/Vergance/index.md" title="Markdown version of this page">
+<link rel="describedby" href="/llms.txt">
 <meta name="theme-color" content="#0d0f12">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Vergance — look at it, say what you want">
@@ -92,7 +94,7 @@
     background: var(--bg); color: var(--text); line-height: 1.6;
   }
   .wrap { max-width: 880px; margin: 0 auto; padding: 64px 24px 80px; }
-  header { text-align: center; margin-bottom: 48px; }
+  .hero { text-align: center; margin-bottom: 48px; }
   h1 { font-size: clamp(44px, 8vw, 72px); font-weight: 800; letter-spacing: -1.5px; }
   h1 .mark { color: var(--accent); }
   .tagline { font-size: clamp(19px, 3.2vw, 26px); font-weight: 600; color: var(--muted); margin-top: 10px; }
@@ -142,7 +144,8 @@
 </head>
 <body>
 <div class="wrap">
-  <header>
+  <main>
+  <div class="hero">
     <h1>👁️ Ver<span class="mark">gance</span></h1>
     <p class="tagline">Look at it. Say what you want. <b>Claude knows what "this" means.</b></p>
     <div class="status">Phases 0–4 done · Phase 5 underway</div>
@@ -151,7 +154,7 @@
       <a class="btn ghost" href="https://github.com/Tatendaz/Vergance/blob/main/ROADMAP.md">Roadmap &amp; spec</a>
     </div>
     <div class="event">the user looked at <b>cta-primary</b> for <b>620 ms</b><br>while saying <b>"make this bigger"</b></div>
-  </header>
+  </div>
 
   <h2>What it is</h2>
   <p><b>Gaze + voice as a multimodal input layer.</b> The camera watches your eyes and mouth. You look at a UI element, say a command, and Vergance emits a small, semantic event that an agent like Claude can act on.</p>
@@ -204,10 +207,12 @@
     <p>No. A webcam works today at region-level accuracy; the iPhone's TrueDepth camera is the v2 path to real gaze vectors and depth. Because everything collapses to one <code>GazeSample</code>, adding the phone later doesn't mean rewriting anything.</p>
   </section>
 
+  </main>
   <footer>
     Apache 2.0 © <a href="https://github.com/Tatendaz">Tatendaz</a> ·
     <a href="https://github.com/Tatendaz/Vergance">Source</a> ·
-    <a href="https://tatendaz.github.io/">More work</a>
+    <a href="https://tatendaz.github.io/">More work</a> ·
+    <a href="https://tatendaz.github.io/llms.txt">llms.txt</a>
   </footer>
 </div>
 </body>
