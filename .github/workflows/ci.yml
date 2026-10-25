@@ -73,7 +73,7 @@ jobs:
       # — nothing to resolve or download. Cold build is ~2s, so the payoff is
       # small; it is here because it is free and harmless, not load-bearing.
       - name: Cache SwiftPM build directory
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
           key: ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
@@ -139,7 +139,7 @@ jobs:
           xcodebuild -version
 
       - name: Cache SwiftPM build directory
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
           key: ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift') }}
