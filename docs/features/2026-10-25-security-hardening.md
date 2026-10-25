@@ -26,8 +26,9 @@ from coming back.
 - `.github/workflows/zizmor.yml` (new): `pipx run zizmor==1.31.1 --offline
   --min-severity medium .`. Scanning the repo root covers
   `dependabot.yml` too, so removing the cooldown fails the job.
-- `.github/workflows/dependabot-auto-merge.yml`: top-level token is now
-  `contents: read`; the write scopes moved onto the one job that needs them.
+- `.github/workflows/dependabot-auto-merge.yml` (deleted): it merged
+  Dependabot patch/minor PRs on green CI with no review. `merge-when-clean.yml`
+  now merges non-major Dependabot PRs, and only after a real review.
 
 ## Notes
 - SwiftPM has no release-age setting, so there is no package-manager cooldown.
