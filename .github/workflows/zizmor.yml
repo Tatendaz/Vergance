@@ -1,7 +1,8 @@
 name: zizmor
 
 # Static analysis of the workflows themselves: unpinned actions, template
-# injection, over-broad tokens. Fails on high-severity findings only.
+# injection, over-broad tokens, and the Dependabot cooldown. Fails on medium
+# or higher; removing the cooldown is a medium finding.
 on:
   push:
     branches: [main]
@@ -23,4 +24,4 @@ jobs:
       # pipx is preinstalled on GitHub's Ubuntu images. The version is pinned so
       # a new zizmor release cannot change what this gate means overnight.
       - name: Run zizmor
-        run: pipx run zizmor==1.31.1 --offline --min-severity high .github/workflows
+        run: pipx run zizmor==1.31.1 --offline --min-severity medium .
