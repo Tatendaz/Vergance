@@ -1,6 +1,0 @@
-# Dependabot PRs carry no `@coderabbitai ignore`, so without this each one
-# would spend a review from the shared per-developer budget.
-reviews:
-  auto_review:
-    ignore_usernames:
-      - "dependabot[bot]"

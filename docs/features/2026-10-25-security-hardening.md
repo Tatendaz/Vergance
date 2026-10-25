@@ -18,8 +18,11 @@ from coming back.
 ## What changed
 - `.github/dependabot.yml` (new): `swift` and `github-actions`, monthly,
   `cooldown.default-days: 7`, one minor+patch group each, at most 3 open PRs.
-- `.coderabbit.yaml` (new): `reviews.auto_review.ignore_usernames:
-  ["dependabot[bot]"]`, so Dependabot PRs do not spend CodeRabbit reviews.
+- `.github/workflows/merge-when-clean.yml` (new, owner template, unchanged):
+  every 30 minutes and on status events, merges Dependabot PRs and the owner's
+  `security/*` or `automerge`-labelled PRs once CI is green, a real review ran
+  (CodeRabbit "Review completed" or `review-failover` success) and 0 threads
+  are open.
 - `.github/workflows/zizmor.yml` (new): `pipx run zizmor==1.31.1 --offline
   --min-severity medium .`. Scanning the repo root covers
   `dependabot.yml` too, so removing the cooldown fails the job.
