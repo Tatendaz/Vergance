@@ -5,7 +5,7 @@
 
 ## Summary
 Dependabot now batches minor and patch updates into one PR per ecosystem per
-month (major bumps open on their own, at most 3 open PRs in all), only for
+month (major bumps open on their own, at most 3 open PRs per ecosystem), only for
 releases at least 7 days old. A new `zizmor` workflow fails any PR that adds a
 medium- or high-severity issue to the workflows or `dependabot.yml`.
 
